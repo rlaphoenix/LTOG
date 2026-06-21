@@ -12,11 +12,18 @@
 
 .EXAMPLE
     pwsh -ExecutionPolicy Bypass -File .\build-installer.ps1
+
+.PARAMETER Version
+    Version embedded into the installer metadata and output filename. Default: 1.0.0.
 #>
 [CmdletBinding()]
 param(
     # Compile even if ISCC has to be installed via winget without prompting.
-    [switch]$AutoInstallInnoSetup
+    [switch]$AutoInstallInnoSetup,
+
+    # Installer/application version. Passed through to LTOG.iss.
+    [ValidatePattern('^\d+\.\d+\.\d+(\.\d+)?$')]
+    [string]$Version = '1.0.0'
 )
 
 Set-StrictMode -Version Latest
@@ -131,7 +138,7 @@ Write-Host "    using $iscc"
 
 # --- 4. compile -----------------------------------------------------------
 Write-Step 'Compiling installer'
-& $iscc $IssFile
+& $iscc "/DMyAppVersion=$Version" $IssFile
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE." }
 
 $out = Get-ChildItem (Join-Path $Root 'Output') -Filter '*.exe' |

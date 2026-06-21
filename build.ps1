@@ -30,6 +30,9 @@
 .PARAMETER Msys2Root
     Path to the MSYS2 installation. Default: C:\msys64.
 
+.PARAMETER Version
+    Version embedded into the GUI assembly and installer. Default: 1.0.0.
+
 .EXAMPLE
     pwsh -File build.ps1                 # full clean build of everything
 
@@ -40,7 +43,9 @@
 param(
     [switch]$SkipNative,
     [switch]$NoInstaller,
-    [string]$Msys2Root = 'C:\msys64'
+    [string]$Msys2Root = 'C:\msys64',
+    [ValidatePattern('^\d+\.\d+\.\d+(\.\d+)?$')]
+    [string]$Version = '1.0.0'
 )
 
 Set-StrictMode -Version Latest
@@ -132,9 +137,12 @@ Step 'Building self-contained WinUI 3 GUI (dotnet)'
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw "dotnet not found. Install the .NET 8 SDK (winget install Microsoft.DotNet.SDK.8)."
 }
+$assemblyVersion = if (($Version.Split('.')).Count -eq 3) { "$Version.0" } else { $Version }
 Push-Location $GuiDir
 try {
-    & dotnet build 'LTOG.Gui.csproj' -c Release -p:Platform=x64 --nologo
+    & dotnet build 'LTOG.Gui.csproj' -c Release -p:Platform=x64 `
+        -p:Version=$Version -p:AssemblyVersion=$assemblyVersion -p:FileVersion=$assemblyVersion `
+        --nologo
     if ($LASTEXITCODE -ne 0) { throw "dotnet build failed (exit $LASTEXITCODE)." }
 } finally {
     Pop-Location
@@ -154,7 +162,7 @@ if ($NoInstaller) {
 } else {
     Step 'Building Windows installer'
     & pwsh -NoProfile -ExecutionPolicy Bypass `
-        -File (Join-Path $InstallerDir 'build-installer.ps1') -AutoInstallInnoSetup
+        -File (Join-Path $InstallerDir 'build-installer.ps1') -AutoInstallInnoSetup -Version $Version
     if ($LASTEXITCODE -ne 0) { throw "installer build failed (exit $LASTEXITCODE)." }
 }
 
