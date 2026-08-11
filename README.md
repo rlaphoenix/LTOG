@@ -20,10 +20,15 @@
 
 ![Screenshot](screenshot.png)
 
-> [!CAUTION]
-> This is a new project. Please test your tape cartridge with the physical Write-Protection switch
-> enabled. I highly recommend test writing on a fresh tape before using your important tapes. Extra
-> caution is advised for use on tapes already formatted with LTFS versions newer or older than `2.4`.
+> [!WARNING]
+> It is highly recommended to Copy files instead of Moving files or risk losing your data. While every
+> reasonable measure has been taken to prevent data loss, it can still occur in rare cases or with aging
+> hardware. Tape drives have an internal memory buffer that stores written data before flushing it to the
+> tape. When Moving files to the mount point LTOG creates, it gets written to this memory buffer that we
+> cannot control. Once moved to the memory buffer, Windows marks the original file for deletion. If the
+> Tape drive has an unexpected or intermittent error or failure while its still in the internal memory
+> buffer, you may lose your data. Copying instead of moving prevents this issue as you will retain the
+> original file on your computer. Only once you unmount the tape should you delete any original files.
 
 ## Features
 
