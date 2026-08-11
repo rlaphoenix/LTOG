@@ -1,0 +1,59 @@
+Subject: [PATCH] ltotape: verify head position after LOCATE, fail on mismatch
+
+A drive recovering from a transient not-ready condition can report SCSI
+success for a LOCATE yet leave the head at the wrong position. libltfs then
+issues its writes there, overwriting an unrelated region -- this is how an
+index-partition VOL1/ltfslabel got destroyed while the intended target was
+the data partition. ltotape_locate already reads the actual position back
+via ltotape_readposition(); now it compares that against the requested
+destination and fails the locate on a mismatch, so no write can proceed at
+an unverified position. The blank-check EOD / virgin-media cases that
+legitimately land elsewhere are exempted.
+
+--- a/ltfs/src/tape_drivers/windows/ltotape/ltotape.c
++++ b/ltfs/src/tape_drivers/windows/ltotape/ltotape.c
+@@ -782,6 +782,7 @@
+ {
+   ltotape_scsi_io_type *sio = (ltotape_scsi_io_type*)device;
+   int                   status = 0;
++  bool                  locate_special = false;
+ 
+   ltfsmsg(LTFS_DEBUG, "20057D", "locate", (unsigned long long)dest.partition, (unsigned long long)dest.block);
+ 
+@@ -845,10 +846,12 @@
+      if ((dest.block == TAPE_BLOCK_MAX) && (SENSE_IS_BLANK_CHECK_EOD(sio->sensedata))) {
+         ltfsmsg(LTFS_DEBUG, "20063D");
+         status = 0;
++        locate_special = true;
+ 
+      } else if ((dest.block == 0) && (SENSE_IS_BLANK_CHECK_NOEOD(sio->sensedata))) {
+         ltfsmsg(LTFS_DEBUG, "20021D");
+         status = 0;
++        locate_special = true;
+                          
+      } else {
+         ltfsmsg(LTFS_ERR, "20064E", status);
+@@ -858,6 +861,23 @@
+ 
+   ltotape_readposition (device, pos);
+ 
++  /*
++   * Guard against a silent mis-locate: a drive recovering from a transient
++   * not-ready condition can report SCSI success yet leave the head at the wrong
++   * position, and a following write would then overwrite an unrelated region of
++   * the medium (this is how an index partition's labels were once destroyed).
++   * Confirm the post-locate position actually matches the request and fail the
++   * locate otherwise, so libltfs never writes at an unverified position. The
++   * blank-check EOD and virgin-media cases handled above legitimately land
++   * elsewhere, so they are exempt.
++   */
++  if (status == 0 && !locate_special &&
++      (pos->partition != dest.partition || pos->block != dest.block)) {
++     ltfsmsg(LTFS_ERR, "20064E", -1);
++     ltotape_log_snapshot (device, FALSE);
++     status = -1;
++  }
++
+   return status;
+ }
+ 
