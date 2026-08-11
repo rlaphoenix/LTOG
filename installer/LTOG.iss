@@ -23,7 +23,9 @@
 ; ===========================================================================
 
 #define MyAppName       "LTOG"
+#ifndef MyAppVersion
 #define MyAppVersion    "1.0.0"
+#endif
 #define MyAppId         "{6E9D2B4A-1C3F-4E58-9A7D-2F5B8C1E4D0A}"
 #define MyAppPublisher  "rlaphoenix"
 #define MyAppURL        "https://github.com/rlaphoenix/LTOG"
