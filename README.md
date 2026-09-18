@@ -58,8 +58,9 @@ git clone https://github.com/rlaphoenix/LTOG
 cd LTOG
 ```
 
-Then build the LTFS+WinFsp engine, the GUI, and the Installer with `.\build`.
-Instructions below show how to individually build each part of the project.
+Then build the LTFS+WinFsp engine and the GUI with `.\build` (add `-WithInstaller`
+to also build the Windows installer). Instructions below show how to individually
+build each part of the project.
 
 ### 1. WinLtfs (LTFS + WinFsp)
 

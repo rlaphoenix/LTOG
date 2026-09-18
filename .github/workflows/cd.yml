@@ -37,7 +37,7 @@ jobs:
 
       - name: Build installer
         shell: pwsh
-        run: pwsh -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Version $env:RELEASE_VERSION
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -WithInstaller -Version $env:RELEASE_VERSION
 
       - name: Locate installer
         id: installer

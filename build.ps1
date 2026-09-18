@@ -29,22 +29,26 @@
     Reuse the WinLtfs binaries already in dist\winltfs\ and skip the download. Use
     when iterating on the GUI/installer. Fails if dist\winltfs\ltfs.exe is absent.
 
-.PARAMETER NoInstaller
-    Build the engine and GUI but stop before the installer.
+.PARAMETER WithInstaller
+    Also build the Windows installer after the engine and GUI. Omitted, the build
+    stops after staging dist\.
 
 .PARAMETER Version
     Version embedded into the GUI assembly and installer. Default: 1.0.0.
 
 .EXAMPLE
-    pwsh -File build.ps1                 # full clean build of everything
+    pwsh -File build.ps1                 # clean build of the engine + GUI into dist\
 
 .EXAMPLE
-    pwsh -File build.ps1 -SkipNative     # rebuild only the GUI + installer (reuse native)
+    pwsh -File build.ps1 -WithInstaller  # also build the installer
+
+.EXAMPLE
+    pwsh -File build.ps1 -SkipNative     # rebuild only the GUI (reuse native)
 #>
 [CmdletBinding()]
 param(
     [switch]$SkipNative,
-    [switch]$NoInstaller,
+    [switch]$WithInstaller,
     [ValidatePattern('^\d+\.\d+\.\d+(\.\d+)?$')]
     [string]$Version = '1.0.0'
 )
@@ -156,13 +160,13 @@ Copy-Item (Join-Path $guiOut '*') -Destination $Dist -Recurse -Force
 Info 'self-contained GUI staged into dist\'
 
 # ------------------------------------------------------------ 4. installer ---
-if ($NoInstaller) {
-    Step 'Skipping installer (-NoInstaller)'
-} else {
+if ($WithInstaller) {
     Step 'Building Windows installer'
     & pwsh -NoProfile -ExecutionPolicy Bypass `
         -File (Join-Path $InstallerDir 'build-installer.ps1') -AutoInstallInnoSetup -Version $Version
     if ($LASTEXITCODE -ne 0) { throw "installer build failed (exit $LASTEXITCODE)." }
+} else {
+    Step 'Skipping installer (pass -WithInstaller to build it)'
 }
 
 # ----------------------------------------------------------------- summary ---
