@@ -8,8 +8,6 @@ public class PersistedMapping
     public string Letter { get; set; } = "T:";
     public string Device { get; set; } = "TAPE0";
     public bool ReadOnly { get; set; }
-    public bool EjectAfterUnmount { get; set; }
-    public bool RemountAtStartup { get; set; }   // per-drive, default unchecked
 }
 
 public class Settings
@@ -20,6 +18,10 @@ public class Settings
     /// <summary>0 = when volume is dismounted, 1 = periodically every N minutes</summary>
     public int SyncPolicyMode { get; set; } = 1;
     public int SyncPeriodMinutes { get; set; } = 5;
+
+    // --- applies to every drive ---
+    public bool EjectAfterUnmount { get; set; }
+    public bool RemountAtStartup { get; set; }   // remount every persisted mapping at sign-in
 
     // --- advanced mount options ---
     public static string DefaultLogDirectory =>
@@ -37,7 +39,7 @@ public class Settings
 
     public string? DistPath { get; set; }                  // optional override of auto-detection
 
-    public string LastTab { get; set; } = "mount";
+    public string LastTab { get; set; } = "";   // last selected drive tab: "TAPE0"..
     public int IndexSort { get; set; } = 0;   // 0 name A-Z, 1 name Z-A, 2 newest, 3 oldest
 
     // last window geometry (null until first close)

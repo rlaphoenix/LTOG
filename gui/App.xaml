@@ -7,11 +7,6 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
-            <!-- flat page surface: no chrome margin, border or corner radius
-                 on the NavigationView content area -->
-            <Thickness x:Key="NavigationViewContentMargin">0</Thickness>
-            <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
-            <CornerRadius x:Key="NavigationViewContentGridCornerRadius">0</CornerRadius>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

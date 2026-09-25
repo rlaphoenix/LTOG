@@ -10,7 +10,7 @@ namespace LTOG.Gui;
 
 public sealed partial class MainWindow : Window
 {
-    /// <summary>One card per detected tape drive (Mounting page).</summary>
+    /// <summary>One tab per detected tape drive.</summary>
     public ObservableCollection<DriveSlot> Slots { get; } = new();
 
     /// <summary>Structured log of every LTFS/WinFsp/tape-drive invocation (Log page).</summary>
@@ -23,11 +23,13 @@ public sealed partial class MainWindow : Window
     private readonly MountManager _mounts = new();
     private List<TapeDrive> _drives = new();
     private readonly List<Window> _childWindows = new();
+    private string _page = "drives";   // title-bar switcher: drives, log, index, about, settings
     private bool _loadingUi;
     private bool _polling;
     private bool _utilityRunning;
     private bool _envOk = true;
     private DispatcherTimer? _pollTimer;
+    private readonly Dictionary<string, FrameworkElement> _drivePages = new();   // by device
 
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
@@ -38,7 +40,13 @@ public sealed partial class MainWindow : Window
         Activity = new ActivityLog(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
 
         InitializeComponent();
+        MainPages.SelectedItem = MainPages.Items[0];   // Drives; not in XAML, it'd fire before Tabs exists
         SystemBackdrop = new MicaBackdrop();
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+        AppWindow.TitleBar.PreferredHeightOption = Microsoft.UI.Windowing.TitleBarHeightOption.Tall;
+        Root.ActualThemeChanged += (_, _) => SyncCaptionColors();
+        foreach (var page in PagesHost.Children) AddShowTransition(page);
 
         // Auto-scroll the log to the newest entry as activity streams in.
         Activity.Updated += () =>
@@ -62,25 +70,32 @@ public sealed partial class MainWindow : Window
             EnvBar.Visibility = Visibility.Visible;
         }
         ApplySettingsToUi();
+        string lastTag = _settings.LastTab;   // before drive tabs auto-select the first drive
         RefreshDrives();
         UpdateGlobalEnabled();
 
-        // restore last selected tab
-        var lastTab = Nav.MenuItems.Concat(Nav.FooterMenuItems)
-            .OfType<NavigationViewItem>()
-            .FirstOrDefault(i => (string?)i.Tag == _settings.LastTab);
+        // restore last selected drive tab
+        var lastTab = Tabs.TabItems.OfType<TabViewItem>().FirstOrDefault(i => (string?)i.Tag == lastTag);
         if (lastTab != null)
-            Nav.SelectedItem = lastTab;
+        {
+            Tabs.SelectedItem = lastTab;
+            ShowPage();
+        }
 
         Root.Loaded += async (_, _) =>
         {
-            FitPaneToItems();
-            // min width = fitted nav pane + page container (640) + gutters (32)
+            SyncCaptionColors();
+            // start focus on the tab, not inside a drive page (would scroll it to the first button)
+            (Tabs.SelectedItem as Control)?.Focus(FocusState.Programmatic);
             if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter op)
             {
                 double scale = Root.XamlRoot.RasterizationScale;
-                op.PreferredMinimumWidth = (int)((Nav.OpenPaneLength + 640 + 32) * scale);
-                op.PreferredMinimumHeight = (int)(480 * scale);
+                // ponytail: TitleBar (WinAppSDK 2.2) reserves RightInset as DIPs though it's physical px,
+                // leaving a gap before the caption buttons at >100% scale; drop this if the control is fixed
+                TitleButtons.Margin = new Thickness(0, 0, -AppWindow.TitleBar.RightInset * (1 - 1 / scale), 0);
+                op.PreferredMinimumWidth = (int)((640 + 32) * scale);
+                op.PreferredMinimumHeight = (int)(600 * scale);
+                op.PreferredMaximumWidth = (int)(1000 * scale);
             }
             AdoptExternalMounts();
             await PollSlotsAsync();
@@ -88,10 +103,11 @@ public sealed partial class MainWindow : Window
                 await RemountPersistedAsync();
         };
 
-        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _pollTimer.Tick += async (_, _) =>
         {
             RefreshDrivesIfChanged();
+            RefreshIdleSlotLetters();
             await PollSlotsAsync();
         };
         _pollTimer.Start();
@@ -138,53 +154,132 @@ public sealed partial class MainWindow : Window
 
     // ------------------------------------------------------------ navigation
 
-    /// <summary>
-    /// NavigationView has no pane auto-fit (through WinAppSDK 2.2), so size
-    /// the pane from the measured width of the widest item instead of a
-    /// hardcoded value — robust against font, DPI and label changes.
-    /// </summary>
-    private void FitPaneToItems()
+    /// <summary>Caption buttons are system-drawn: give them the same colour active or not.</summary>
+    private void SyncCaptionColors()
     {
-        double max = 0;
-        foreach (var obj in Nav.MenuItems.Concat(Nav.FooterMenuItems))
-        {
-            if (obj is not NavigationViewItem item) continue;
-            item.Measure(new Windows.Foundation.Size(
-                double.PositiveInfinity, double.PositiveInfinity));
-            max = Math.Max(max, item.DesiredSize.Width);
-        }
-        if (max > 0)
-            Nav.OpenPaneLength = Math.Ceiling(max);   // DesiredSize already includes item margins
+        var fg = Root.ActualTheme == ElementTheme.Dark ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
+        AppWindow.TitleBar.ButtonForegroundColor = fg;
+        AppWindow.TitleBar.ButtonInactiveForegroundColor = fg;
+    }
+
+    /// <summary>Fade + slide in from the right whenever a page becomes visible (pages switch by Visibility).</summary>
+    private static void AddShowTransition(UIElement page)
+    {
+        var c = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(page).Compositor;
+        var ease = c.CreateCubicBezierEasingFunction(new(0.1f, 0.9f), new(0.2f, 1f));   // decelerate
+        var duration = TimeSpan.FromMilliseconds(250);
+        var fade = c.CreateScalarKeyFrameAnimation();
+        fade.Target = "Opacity";
+        fade.InsertKeyFrame(0, 0);
+        fade.InsertKeyFrame(1, 1, ease);
+        fade.Duration = duration;
+        var slide = c.CreateVector3KeyFrameAnimation();
+        slide.Target = "Translation";
+        slide.InsertKeyFrame(0, new System.Numerics.Vector3(32, 0, 0));
+        slide.InsertKeyFrame(1, System.Numerics.Vector3.Zero, ease);
+        slide.Duration = duration;
+        var show = c.CreateAnimationGroup();
+        show.Add(fade);
+        show.Add(slide);
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(page, true);
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetImplicitShowAnimation(page, show);
     }
 
     private void PagesHost_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        // Deterministic page container: fill to 640px, centered.
-        double page = Math.Max(320, Math.Min(640, e.NewSize.Width - 32)); // 16px gutters
-        MountContent.Width = page;
+        // Deterministic page container: fill to 960px, centered.
+        double page = Math.Max(320, Math.Min(960, e.NewSize.Width - 32)); // 16px gutters
         IndexContent.Width = page;
         SettingsContent.Width = page;
         AboutContent.Width = page;
         LogPanel.Width = page;
     }
 
-    private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    private void Tabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        var tag = (args.SelectedItem as NavigationViewItem)?.Tag as string;
-        MountPanel.Visibility = tag == "mount" ? Visibility.Visible : Visibility.Collapsed;
-        IndexPanel.Visibility = tag == "index" ? Visibility.Visible : Visibility.Collapsed;
-        LogPanel.Visibility = tag == "log" ? Visibility.Visible : Visibility.Collapsed;
-        SettingsPanel.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
-        AboutPanel.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
-        if (tag == "index")
-            RefreshSchemas();
-        if (tag == "about")
-            _ = LoadAboutInfoAsync();
+        ShowPage();
+        var tag = (Tabs.SelectedItem as TabViewItem)?.Tag as string;
         if (tag != null && _settings.LastTab != tag)
         {
             _settings.LastTab = tag;
             _settings.Save();
         }
+    }
+
+    /// <summary>Title-bar switchers: the left and right SelectorBars behave as one group.</summary>
+    private void Page_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        if (sender.SelectedItem is not { } item) return;   // cleared by the other bar
+        (sender == MainPages ? TitleButtons : MainPages).SelectedItem = null;
+        // SelectorBarItem's selected+hover state falls back to the item's own Background, so
+        // put the selected fill there too or it vanishes under the pointer
+        foreach (var i in MainPages.Items.Concat(TitleButtons.Items))
+        {
+            if (i == item) i.Background = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"];
+            else i.ClearValue(Control.BackgroundProperty);
+        }
+        _page = (string)item.Tag;
+        if (_page == "index") RefreshSchemas();
+        if (_page == "about") _ = LoadAboutInfoAsync();
+        ShowPage();
+    }
+
+    /// <summary>Show the current page; on Tape Drives, the selected drive's page (or the no-drives hint).</summary>
+    private void ShowPage()
+    {
+        static Visibility Vis(bool b) => b ? Visibility.Visible : Visibility.Collapsed;
+        bool drives = _page == "drives";
+        var dev = (Tabs.SelectedItem as TabViewItem)?.Tag as string;
+        foreach (var (d, page) in _drivePages) page.Visibility = Vis(drives && d == dev);
+        NoDrivesText.Visibility = Vis(drives && dev == null);
+        TabStrip.Visibility = Vis(drives && Tabs.TabItems.Count > 1);
+        LogPanel.Visibility = Vis(_page == "log");
+        IndexPanel.Visibility = Vis(_page == "index");
+        AboutPanel.Visibility = Vis(_page == "about");
+        SettingsPanel.Visibility = Vis(_page == "settings");
+    }
+
+    /// <summary>One tab + page per slot, in TAPE0..9 order; stale ones removed.</summary>
+    private void SyncDriveTabs()
+    {
+        foreach (var item in Tabs.TabItems.OfType<TabViewItem>().ToList())
+        {
+            var dev = (string)item.Tag;
+            if (Slots.Any(s => s.Drive.Device == dev)) continue;
+            if (ReferenceEquals(Tabs.SelectedItem, item)) Tabs.SelectedItem = null;
+            Tabs.TabItems.Remove(item);
+            PagesHost.Children.Remove(_drivePages[dev]);
+            _drivePages.Remove(dev);
+        }
+        foreach (var slot in Slots)
+        {
+            var dev = slot.Drive.Device;
+            if (_drivePages.ContainsKey(dev)) continue;
+            var page = new ContentControl
+            {
+                Content = slot,
+                ContentTemplate = (DataTemplate)Root.Resources["DrivePage"],
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                VerticalContentAlignment = VerticalAlignment.Stretch,
+                IsTabStop = false,
+                Visibility = Visibility.Collapsed,
+            };
+            _drivePages[dev] = page;
+            AddShowTransition(page);
+            PagesHost.Children.Add(page);
+            int at = Tabs.TabItems.OfType<TabViewItem>()
+                .Count(i => string.CompareOrdinal((string)i.Tag, dev) < 0);
+            Tabs.TabItems.Insert(at, new TabViewItem
+            {
+                Header = slot.Drive.TabTitle,
+                Tag = dev,
+                IsClosable = false,
+                IconSource = new FontIconSource { Glyph = "" },   // generic drive (Segoe "HardDrive")
+            });
+        }
+        Tabs.SelectedItem ??= Tabs.TabItems.FirstOrDefault();
+        // a collapsed (never templated) TabView doesn't raise SelectionChanged, so don't rely on it
+        ShowPage();
     }
 
     // ------------------------------------------------------------ about
@@ -272,6 +367,8 @@ public sealed partial class MainWindow : Window
     private void ApplySettingsToUi()
     {
         _loadingUi = true;
+        EjectAfterUnmountCheck.IsChecked = _settings.EjectAfterUnmount;
+        RemountCheck.IsChecked = _settings.RemountAtStartup;
         CaptureIndexCheck.IsChecked = _settings.CaptureIndex;
         WorkFolderBox.Text = _settings.WorkFolder;
         OverridePolicyCheck.IsChecked = _settings.OverrideSyncPolicy;
@@ -320,6 +417,7 @@ public sealed partial class MainWindow : Window
         UpdatePolicyEnabled();
         UpdateIndexEnabled();
         SaveSettingsFromUi();
+        UpdateRunKey();
     }
 
     private void Period_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
@@ -330,6 +428,8 @@ public sealed partial class MainWindow : Window
 
     private void SaveSettingsFromUi()
     {
+        _settings.EjectAfterUnmount = EjectAfterUnmountCheck.IsChecked == true;
+        _settings.RemountAtStartup = RemountCheck.IsChecked == true;
         _settings.CaptureIndex = CaptureIndexCheck.IsChecked == true;
         _settings.WorkFolder = string.IsNullOrWhiteSpace(WorkFolderBox.Text)
             ? @"C:\tmp\ltfs" : WorkFolderBox.Text.Trim();
@@ -372,7 +472,7 @@ public sealed partial class MainWindow : Window
         RebuildSlots();
     }
 
-    /// <summary>Auto-refresh (5s): re-enumerate and only touch the UI on change.</summary>
+    /// <summary>Auto-refresh (3s): re-enumerate and only touch the UI on change.</summary>
     private void RefreshDrivesIfChanged()
     {
         List<TapeDrive> found;
@@ -386,7 +486,7 @@ public sealed partial class MainWindow : Window
         RebuildSlots();
     }
 
-    /// <summary>Sync the slot cards with the detected drives, preserving state.</summary>
+    /// <summary>Sync the slots (and their tabs) with the detected drives, preserving state.</summary>
     private void RebuildSlots()
     {
         // remove slots whose drive disappeared (keep mounted ones: the device
@@ -404,7 +504,7 @@ public sealed partial class MainWindow : Window
             Slots.Add(slot);
         }
 
-        NoDrivesText.Visibility = Slots.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        SyncDriveTabs();
         UpdateGlobalEnabled();
     }
 
@@ -434,25 +534,6 @@ public sealed partial class MainWindow : Window
         finally { _polling = false; }
     }
 
-    /// <summary>
-    /// Build a cartridge card line: "label, LTO-N, LTFS X.X[, Write-Protected]" for a
-    /// formatted cartridge, or "Cartridge Unformatted, LTO-N[, Write-Protected]" otherwise.
-    /// Any unknown segment (generation, format version) is simply omitted.
-    /// </summary>
-    private static string FormatCartridgeLine(
-        string? label, string? ltoGen, string? formatVersion, bool writeProtected, bool ltfs)
-    {
-        var parts = new List<string>
-        {
-            ltfs ? (string.IsNullOrEmpty(label) ? "(unlabelled LTFS cartridge)" : label!)
-                 : "Cartridge Unformatted",
-        };
-        if (!string.IsNullOrEmpty(ltoGen)) parts.Add(ltoGen!);
-        if (ltfs && !string.IsNullOrEmpty(formatVersion)) parts.Add($"LTFS {formatVersion}");
-        if (writeProtected) parts.Add("Write-Protected");
-        return string.Join(", ", parts);
-    }
-
     private async Task PollSlotCoreAsync(DriveSlot slot)
     {
         if (slot.Phase is SlotPhase.Mounting or SlotPhase.Unmounting)
@@ -461,9 +542,10 @@ public sealed partial class MainWindow : Window
         if (slot.Phase == SlotPhase.Mounted && slot.Mapping != null)
         {
             var m = slot.Mapping;
-            slot.CartridgeText = FormatCartridgeLine(
-                m.VolumeName, m.LtoGeneration, m.FormatVersion, m.WriteProtected, ltfs: true);
             slot.CanMount = true;
+            // off the UI thread: LTFS can hold statfs while it writes an index
+            try { slot.LiveUsage = await Task.Run(() => { var di = new DriveInfo(m.Letter); return (di.TotalSize, di.TotalFreeSpace); }); }
+            catch { slot.LiveUsage = null; }
             return;
         }
 
@@ -478,14 +560,8 @@ public sealed partial class MainWindow : Window
                 slot.CanMount = false;
                 break;
             case CartridgeState.NotLtfs:
-                slot.CartridgeText = FormatCartridgeLine(
-                    null, cart.LtoGeneration, null, cart.WriteProtected, ltfs: false);
-                slot.CanMount = true;   // detection is best-effort
-                break;
             case CartridgeState.Ltfs:
-                slot.CartridgeText = FormatCartridgeLine(
-                    cart.VolumeName, cart.LtoGeneration, cart.FormatVersion, cart.WriteProtected, ltfs: true);
-                slot.CanMount = true;
+                slot.CanMount = true;   // CartridgeText only shows without a cartridge; the dashboard covers it
                 break;
             case CartridgeState.NotReady:
                 slot.CartridgeText = "Drive not ready...";
@@ -507,7 +583,7 @@ public sealed partial class MainWindow : Window
     private MountOptions OptionsFromSlot(DriveSlot slot) => new()
     {
         ReadOnly = slot.ReadOnlyChecked,
-        EjectAfterUnmount = slot.EjectChecked,
+        EjectAfterUnmount = _settings.EjectAfterUnmount,
         CaptureIndex = _settings.CaptureIndex,
         WorkFolder = _settings.WorkFolder,
         OverrideSyncPolicy = _settings.OverrideSyncPolicy,
@@ -519,52 +595,44 @@ public sealed partial class MainWindow : Window
         Verbosity = _settings.Verbosity,
     };
 
-    /// <summary>Refresh the whole card: free letters, cartridge identity, status.</summary>
-    private async void SlotRefreshCard_Click(object sender, RoutedEventArgs e)
+    // ---- raw MAM table: copy rows as tab-separated text, header first
+
+    private ListView? _mamMenuTarget;   // the table a context menu was opened on
+
+    private static void CopyMamRows(IEnumerable<MamRow> rows)
     {
-        if (SlotOf(sender) is not DriveSlot slot || slot.IsBusy || slot.RefreshRunning) return;
-        slot.RefreshRunning = true;
-        try
-        {
-            if (slot.Phase == SlotPhase.Idle)
-            {
-                slot.CartridgeText = "Checking cartridge...";
-                slot.SetLetters(NativeTape.UnusedLetters());
-            }
-            await PollSlotCoreAsync(slot);
-        }
-        finally { slot.RefreshRunning = false; }
+        var lines = rows.Select(r => string.Join('\t', r.Id, r.Name, r.Partition, r.Size, r.Value))
+            .Prepend("ID\tAttribute\tPartition\tSize\tValue");
+        var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        dp.SetText(string.Join("\r\n", lines));
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+    }
+
+    private void MamCopy_Invoked(Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs e)
+    {
+        if (e.Element is not ListView lv) return;
+        CopyMamRows(lv.SelectedItems.Cast<MamRow>());
+        e.Handled = true;
+    }
+
+    private void MamMenu_Opening(object sender, object e) =>
+        _mamMenuTarget = (sender as MenuFlyout)?.Target as ListView;
+
+    private void MamCopySelected_Click(object sender, RoutedEventArgs e)
+    {
+        if (_mamMenuTarget is { } lv) CopyMamRows(lv.SelectedItems.Cast<MamRow>());
+    }
+
+    private void MamCopyAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (_mamMenuTarget is { } lv) CopyMamRows(lv.Items.Cast<MamRow>());
     }
 
     private void SlotReadOnly_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is DriveSlot slot && sender is CheckBox cb)
             slot.ReadOnlyChecked = cb.IsChecked == true;
-    }
-
-    private void SlotEject_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is DriveSlot slot && sender is CheckBox cb)
-            slot.EjectChecked = cb.IsChecked == true;
-    }
-
-    private void SlotRemount_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not DriveSlot slot || sender is not CheckBox cb)
-            return;
-        slot.RemountChecked = cb.IsChecked == true;
-        // For an active mount, update the persisted entry immediately;
-        // for an idle drive the flag is stored when the mount is created.
-        if (slot.Mapping is { } m)
-        {
-            var p = _settings.Mappings.FirstOrDefault(x => x.Letter == m.Letter);
-            if (p != null)
-            {
-                p.RemountAtStartup = slot.RemountChecked;
-                _settings.Save();
-            }
-        }
-        UpdateRunKey();
     }
 
     private async void SlotAction_Click(object sender, RoutedEventArgs e)
@@ -610,7 +678,7 @@ public sealed partial class MainWindow : Window
             await _mounts.MountAsync(mapping, Activity);
             slot.Phase = SlotPhase.Mounted;
             slot.SetMountedLetter(letter);
-            PersistMapping(mapping, slot.RemountChecked);
+            PersistMapping(mapping);
         }
         catch (Exception ex)
         {
@@ -652,7 +720,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void PersistMapping(Mapping m, bool remountAtStartup)
+    private void PersistMapping(Mapping m)
     {
         _settings.Mappings.RemoveAll(p => p.Letter == m.Letter);
         _settings.Mappings.Add(new PersistedMapping
@@ -660,18 +728,16 @@ public sealed partial class MainWindow : Window
             Letter = m.Letter,
             Device = m.Device,
             ReadOnly = m.Options.ReadOnly,
-            EjectAfterUnmount = m.Options.EjectAfterUnmount,
-            RemountAtStartup = remountAtStartup,
         });
         _settings.Save();
         UpdateRunKey();
     }
 
-    /// <summary>The autostart entry exists iff any mount wants remount-at-startup.</summary>
+    /// <summary>The autostart entry exists iff remount-at-startup is on and something is mounted.</summary>
     private void UpdateRunKey()
     {
         using var key = Registry.CurrentUser.CreateSubKey(RunKey);
-        if (_settings.Mappings.Any(p => p.RemountAtStartup))
+        if (_settings.RemountAtStartup && _settings.Mappings.Count > 0)
         {
             string exe = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "LTOG.exe");
             key.SetValue("LTOG", $"\"{exe}\" --remount");
@@ -703,7 +769,7 @@ public sealed partial class MainWindow : Window
                 Options = new MountOptions
                 {
                     ReadOnly = p.ReadOnly,
-                    EjectAfterUnmount = p.EjectAfterUnmount,
+                    EjectAfterUnmount = _settings.EjectAfterUnmount,
                     CaptureIndex = _settings.CaptureIndex,
                     WorkFolder = _settings.WorkFolder,
                 },
@@ -717,8 +783,6 @@ public sealed partial class MainWindow : Window
             _mappings.Add(mapping);
             slot.Mapping = mapping;
             slot.ReadOnlyChecked = p.ReadOnly;
-            slot.EjectChecked = p.EjectAfterUnmount;
-            slot.RemountChecked = p.RemountAtStartup;
             slot.SetMountedLetter(p.Letter);
             slot.Phase = SlotPhase.Mounted;
             Activity.Note($"Adopted existing mount on {p.Letter} ({p.Device}, pid {pid}) from a previous session.");
@@ -727,7 +791,8 @@ public sealed partial class MainWindow : Window
 
     private async Task RemountPersistedAsync()
     {
-        foreach (var p in _settings.Mappings.Where(p => p.RemountAtStartup).ToList())
+        if (!_settings.RemountAtStartup) return;
+        foreach (var p in _settings.Mappings.ToList())
         {
             var slot = Slots.FirstOrDefault(s => s.Drive.Device == p.Device);
             if (slot == null || slot.Phase != SlotPhase.Idle) continue;
@@ -739,8 +804,6 @@ public sealed partial class MainWindow : Window
                 continue;
             }
             slot.ReadOnlyChecked = p.ReadOnly;
-            slot.EjectChecked = p.EjectAfterUnmount;
-            slot.RemountChecked = true;
             slot.SetLetters(free, prefer: p.Letter);
             await MountSlotAsync(slot);
         }
@@ -762,7 +825,7 @@ public sealed partial class MainWindow : Window
     private static DriveSlot? SlotOf(object sender) =>
         (sender as FrameworkElement)?.DataContext as DriveSlot;
 
-    /// <summary>Header button: ejects the cartridge, or loads one when the drive is empty.</summary>
+    /// <summary>Ejects the cartridge, or loads one when the drive is empty.</summary>
     private async void SlotEjectLoad_Click(object sender, RoutedEventArgs e)
     {
         var slot = SlotOf(sender);
@@ -1017,6 +1080,12 @@ public sealed partial class MainWindow : Window
     }
 
     // ------------------------------------------------------------ settings
+
+    private void DeviceManager_Click(object sender, RoutedEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo("devmgmt.msc") { UseShellExecute = true }); }
+        catch (Exception ex) { Activity.Note($"open Device Manager failed: {ex.Message}", isError: true); }
+    }
 
     private void GitHub_Click(object sender, RoutedEventArgs e)
     {

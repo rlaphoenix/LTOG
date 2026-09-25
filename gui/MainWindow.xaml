@@ -19,580 +19,926 @@
                    BasedOn="{StaticResource BodyStrongTextBlockStyle}">
                 <Setter Property="Margin" Value="2,0,0,8" />
             </Style>
-        </Grid.Resources>
+            <Style x:Key="DashSection" TargetType="StackPanel">
+                <Setter Property="Orientation" Value="Horizontal" />
+                <Setter Property="Spacing" Value="10" />
+            </Style>
+            <Style x:Key="DashLabel" TargetType="TextBlock"
+                   BasedOn="{StaticResource CaptionTextBlockStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            </Style>
 
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <InfoBar x:Name="EnvBar" Grid.Row="0" Margin="12,8,12,0"
-                 IsOpen="False" Severity="Error" IsClosable="False"
-                 Visibility="Collapsed" />
-
-        <NavigationView x:Name="Nav" Grid.Row="1"
-                        PaneDisplayMode="Left" OpenPaneLength="156"
-                        IsBackButtonVisible="Collapsed" IsSettingsVisible="False"
-                        IsPaneToggleButtonVisible="False"
-                        SelectionChanged="Nav_SelectionChanged">
-            <NavigationView.MenuItems>
-                <NavigationViewItem x:Name="MountNavItem" Content="Tape Drives" Tag="mount" IsSelected="True">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8CE;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="Indexes" Tag="index">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE8F1;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
-            <NavigationView.FooterMenuItems>
-                <NavigationViewItem Content="Log" Tag="log">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE7C3;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="Settings" Tag="settings">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE713;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="About" Tag="about">
-                    <NavigationViewItem.Icon>
-                        <FontIcon Glyph="&#xE946;" />
-                    </NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.FooterMenuItems>
-
-            <Grid x:Name="PagesHost" SizeChanged="PagesHost_SizeChanged">
-                <!-- ==================== Mounting ==================== -->
-                <ScrollViewer x:Name="MountPanel" Padding="16,0">
-                    <StackPanel x:Name="MountContent" Spacing="12" HorizontalAlignment="Center" Margin="0,12">
-                        <TextBlock x:Name="NoDrivesText" Text="No tape drives found."
-                                   Opacity="0.6" Margin="2,0" Visibility="Collapsed" />
-                        <ItemsControl x:Name="DrivesList" ItemsSource="{x:Bind Slots}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="local:DriveSlot">
-                                    <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                                        <StackPanel Spacing="12">
-                                            <Grid ColumnSpacing="12">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Spacing="2">
-                                                    <TextBlock Text="{x:Bind DriveDisplay}" IsTextSelectionEnabled="True"
-                                                               Style="{StaticResource BodyStrongTextBlockStyle}" />
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                                        <FontIcon Glyph="&#xE958;" FontSize="13" Opacity="0.7"
-                                                                  VerticalAlignment="Center" Margin="0,1,0,0" />
-                                                        <TextBlock Text="{x:Bind CartridgeText, Mode=OneWay}" IsTextSelectionEnabled="True"
-                                                                   FontSize="12" Opacity="0.75"
-                                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
-                                                    </StackPanel>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                                            Spacing="8" VerticalAlignment="Center">
-                                                    <Button Width="42" Height="38" Padding="0"
-                                                            ToolTipService.ToolTip="{x:Bind EjectLoadTooltip, Mode=OneWay}"
-                                                            IsEnabled="{x:Bind EjectLoadEnabled, Mode=OneWay}"
-                                                            Click="SlotEjectLoad_Click">
-                                                        <Grid>
-                                                            <FontIcon Glyph="{x:Bind EjectLoadGlyph, Mode=OneWay}" FontSize="16"
-                                                                      Visibility="{x:Bind EjectLoadGlyphVisibility, Mode=OneWay}" />
-                                                            <ProgressRing IsActive="{x:Bind MediaOpRunning, Mode=OneWay}"
-                                                                          Width="16" Height="16"
-                                                                          Visibility="{x:Bind EjectLoadSpinnerVisibility, Mode=OneWay}" />
-                                                        </Grid>
-                                                    </Button>
-                                                    <Button Width="42" Height="38" Padding="0"
-                                                            ToolTipService.ToolTip="Refresh drive, cartridge and free letters"
-                                                            IsEnabled="{x:Bind RefreshEnabled, Mode=OneWay}"
-                                                            Click="SlotRefreshCard_Click">
-                                                        <Grid>
-                                                            <FontIcon Glyph="&#xE72C;" FontSize="16"
-                                                                      Visibility="{x:Bind RefreshGlyphVisibility, Mode=OneWay}" />
-                                                            <ProgressRing IsActive="{x:Bind RefreshRunning, Mode=OneWay}"
-                                                                          Width="16" Height="16"
-                                                                          Visibility="{x:Bind RefreshSpinnerVisibility, Mode=OneWay}" />
-                                                        </Grid>
-                                                    </Button>
-                                                </StackPanel>
-                                            </Grid>
-
-                                            <Border Height="1" Margin="-16,4"
-                                                    Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Text="Drive letter" VerticalAlignment="Center" />
-                                                <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
-                                                          ItemsSource="{x:Bind Letters}"
-                                                          SelectedIndex="{x:Bind SelectedLetterIndex, Mode=TwoWay}"
-                                                          IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}" />
-                                                <Button Grid.Column="2"
-                                                        Style="{x:Bind ButtonStyle, Mode=OneWay}"
-                                                        MinWidth="0"
-                                                        VerticalAlignment="Center"
-                                                        IsEnabled="{x:Bind ButtonEnabled, Mode=OneWay}"
-                                                        Click="SlotAction_Click">
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                                        <ProgressRing IsActive="{x:Bind IsBusy, Mode=OneWay}"
-                                                                      Width="16" Height="16"
-                                                                      Visibility="{x:Bind SpinnerVisibility, Mode=OneWay}" />
-                                                        <TextBlock Text="{x:Bind ButtonText, Mode=OneWay}" />
-                                                    </StackPanel>
-                                                </Button>
-                                            </Grid>
-
-                                            <StackPanel Orientation="Horizontal" Spacing="24">
-                                                <CheckBox Content="Mount read-only"
-                                                          IsChecked="{x:Bind ReadOnlyChecked, Mode=OneWay}"
-                                                          IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
-                                                          Click="SlotReadOnly_Click" />
-                                                <CheckBox Content="Eject cartridge after unmount"
-                                                          IsChecked="{x:Bind EjectChecked, Mode=OneWay}"
-                                                          IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
-                                                          Click="SlotEject_Click" />
-                                                <CheckBox Content="Remount at system start-up"
-                                                          IsChecked="{x:Bind RemountChecked, Mode=OneWay}"
-                                                          IsEnabled="{x:Bind RemountEnabled, Mode=OneWay}"
-                                                          Click="SlotRemount_Click" />
-                                            </StackPanel>
-
-                                            <!-- cartridge controls -->
-                                            <Border Height="1" Margin="-16,4"
-                                                    Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <Button Content="Format..." HorizontalAlignment="Stretch"
-                                                        IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
-                                                        Click="SlotFormat_Click" />
-                                                <Button Grid.Column="1" Content="Unformat..." HorizontalAlignment="Stretch"
-                                                        IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
-                                                        Click="SlotUnformat_Click" />
-                                                <Button Grid.Column="2" Content="Check" HorizontalAlignment="Stretch"
-                                                        IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
-                                                        Click="SlotCheck_Click" />
-                                            </Grid>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+            <!-- headline figure (Type, Name, Firmware, ...) -->
+            <DataTemplate x:Key="StatTile" x:DataType="local:Stat">
+                <Border Style="{StaticResource Card}" Padding="16,12"
+                        ToolTipService.ToolTip="{x:Bind Value}">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="{x:Bind Label}" Style="{StaticResource DashLabel}" />
+                        <TextBlock Text="{x:Bind Value}" Style="{StaticResource SubtitleTextBlockStyle}"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                   IsTextSelectionEnabled="True" />
                     </StackPanel>
-                </ScrollViewer>
+                </Border>
+            </DataTemplate>
 
-                <!-- ==================== Indexes ==================== -->
-                <ScrollViewer x:Name="IndexPanel" Padding="16,0" Visibility="Collapsed">
-                    <StackPanel x:Name="IndexContent" Spacing="12" HorizontalAlignment="Center" Margin="0,12">
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Button Content="Open folder" Click="OpenWorkFolder_Click" />
-                            <Button Grid.Column="1" Content="Refresh" Click="RefreshSchemas_Click" />
-                            <ComboBox x:Name="SchemaSortCombo" Grid.Column="3" MinWidth="170"
-                                      SelectionChanged="SchemaSort_Changed">
-                                <ComboBoxItem Content="Name (A–Z)" />
-                                <ComboBoxItem Content="Name (Z–A)" />
-                                <ComboBoxItem Content="Newest captured" />
-                                <ComboBoxItem Content="Oldest captured" />
-                            </ComboBox>
-                        </Grid>
-                        <TextBlock x:Name="NoSchemasText" Text="No captured indexes yet."
-                                   Opacity="0.6" Margin="2,0" />
-                        <ItemsControl x:Name="SchemaList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="local:SchemaItem">
-                                    <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                                        <Grid ColumnSpacing="12">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Spacing="1">
-                                                <TextBlock Text="{x:Bind Title}"
-                                                           Style="{StaticResource BodyStrongTextBlockStyle}"
-                                                           IsTextSelectionEnabled="True" />
-                                                <TextBlock Text="{x:Bind GenLine}" FontSize="12"
-                                                           Opacity="0.75" TextWrapping="Wrap"
-                                                           IsTextSelectionEnabled="True" />
-                                                <TextBlock Text="{x:Bind CaptureLine}" FontSize="12"
-                                                           Opacity="0.75" TextWrapping="Wrap"
-                                                           IsTextSelectionEnabled="True" />
-                                                <TextBlock Text="{x:Bind Uuid}" FontSize="11"
-                                                           Opacity="0.5" TextWrapping="Wrap"
-                                                           IsTextSelectionEnabled="True" />
-                                            </StackPanel>
-                                            <Button Grid.Column="1" Content="Open"
-                                                    VerticalAlignment="Center"
-                                                    Click="SchemaOpen_Click" />
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+            <!-- detail cell inside a group -->
+            <DataTemplate x:Key="StatCell" x:DataType="local:Stat">
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="6" Padding="12,8"
+                        ToolTipService.ToolTip="{x:Bind Value}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind Label}" Style="{StaticResource DashLabel}" />
+                        <TextBlock Text="{x:Bind Value}" TextTrimming="CharacterEllipsis"
+                                   IsTextSelectionEnabled="True" />
                     </StackPanel>
-                </ScrollViewer>
+                </Border>
+            </DataTemplate>
 
-                <!-- ==================== Log ==================== -->
-                <Grid x:Name="LogPanel" Margin="0,12" HorizontalAlignment="Center"
-                      Visibility="Collapsed">
+            <DataTemplate x:Key="StatGroupTemplate" x:DataType="local:StatGroup">
+                <StackPanel Spacing="8" Margin="0,4,0,12">
+                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="2,0" />
+                    <ItemsRepeater ItemsSource="{x:Bind Items}" ItemTemplate="{StaticResource StatCell}">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout MinItemWidth="210" MinColumnSpacing="8" MinRowSpacing="8"
+                                               ItemsStretch="Fill" MaximumRowsOrColumns="{x:Bind MaxColumns}" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                    <ItemsRepeater ItemsSource="{x:Bind TailItems}" ItemTemplate="{StaticResource StatCell}">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout MinItemWidth="100" MinColumnSpacing="8" MinRowSpacing="8"
+                                               ItemsStretch="Fill" MaximumRowsOrColumns="4" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- one instance per tape drive tab -->
+            <DataTemplate x:Key="DrivePage" x:DataType="local:DriveSlot">
+                <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-
-                    <!-- toolbar -->
-                    <Grid Margin="2,0,2,10" ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Activity log" Style="{StaticResource SectionHeader}" Margin="0" />
-                            <TextBlock Text="Every LTFS, WinFsp and tape-drive call — full command line, output and result."
-                                       FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                       IsTextSelectionEnabled="True" />
-                        </StackPanel>
-                        <CheckBox x:Name="AutoScrollCheck" Grid.Column="1" Content="Auto-scroll"
-                                  IsChecked="True" VerticalAlignment="Center" />
-                        <Button Grid.Column="2" Content="Open log file"
-                                VerticalAlignment="Center" Click="OpenLogFile_Click" />
-                        <Button Grid.Column="3" Content="Clear"
-                                VerticalAlignment="Center" Click="ClearLog_Click" />
-                    </Grid>
-
-                    <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
-                        <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto" Padding="10">
-                            <StackPanel>
-                                <TextBlock x:Name="NoLogText" Text="No activity yet." Opacity="0.6" Margin="4"
-                                           Visibility="{x:Bind Activity.EmptyHint, Mode=OneWay}" />
-                                <ItemsControl ItemsSource="{x:Bind Activity.Entries}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:LogEntry">
-                                            <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                    BorderThickness="1" CornerRadius="6" Margin="0,0,0,8">
-                                                <Grid>
-                                                    <!-- per-kind accent bar -->
-                                                    <Border Width="3" HorizontalAlignment="Left"
-                                                            CornerRadius="6,0,0,6"
-                                                            Background="{x:Bind AccentBrush}" />
-                                                    <StackPanel Margin="14,9,12,10" Spacing="7">
-                                                        <!-- header: icon · title · time -->
-                                                        <Grid ColumnSpacing="8">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="Auto" />
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-                                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="15"
-                                                                      Foreground="{x:Bind AccentBrush}"
-                                                                      VerticalAlignment="Center" />
-                                                            <TextBlock Grid.Column="1" Text="{x:Bind Title}"
-                                                                       Style="{StaticResource BodyStrongTextBlockStyle}"
-                                                                       TextWrapping="Wrap" IsTextSelectionEnabled="True"
-                                                                       VerticalAlignment="Center" />
-                                                            <TextBlock Grid.Column="2" Text="{x:Bind Timestamp}"
-                                                                       FontFamily="Consolas" FontSize="12" Opacity="0.55"
-                                                                       VerticalAlignment="Center" />
-                                                        </Grid>
-
-                                                        <!-- full command line -->
-                                                        <Border Visibility="{x:Bind CommandVisibility}"
-                                                                Background="{ThemeResource ControlFillColorDefaultBrush}"
-                                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                                BorderThickness="1" CornerRadius="4" Padding="9,7">
-                                                            <StackPanel Spacing="3">
-                                                                <TextBlock FontFamily="Consolas" FontSize="12.5"
-                                                                           TextWrapping="Wrap" IsTextSelectionEnabled="True">
-                                                                    <Run Text="$ " Foreground="{x:Bind AccentBrush}" />
-                                                                    <Run Text="{x:Bind CommandLine}" />
-                                                                </TextBlock>
-                                                                <TextBlock Visibility="{x:Bind WorkingDirVisibility}"
-                                                                           Text="{x:Bind WorkingDirText}"
-                                                                           FontFamily="Consolas" FontSize="11" Opacity="0.55"
-                                                                           TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-                                                            </StackPanel>
-                                                        </Border>
-
-                                                        <!-- streamed output -->
-                                                        <Border Visibility="{x:Bind OutputVisibility, Mode=OneWay}"
-                                                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
-                                                                CornerRadius="4" Padding="9,6">
-                                                            <RichTextBlock local:LogParagraph.Source="{x:Bind Lines}"
-                                                                           FontFamily="Consolas" FontSize="12"
-                                                                           TextWrapping="Wrap"
-                                                                           IsTextSelectionEnabled="True" />
-                                                        </Border>
-
-                                                        <!-- result footer -->
-                                                        <StackPanel Orientation="Horizontal" Spacing="8"
-                                                                    Visibility="{x:Bind ResultVisibility}">
-                                                            <ProgressRing Width="15" Height="15"
-                                                                          IsActive="{x:Bind Running, Mode=OneWay}"
-                                                                          Visibility="{x:Bind SpinnerVisibility, Mode=OneWay}" />
-                                                            <Border CornerRadius="9" Padding="9,2"
-                                                                    VerticalAlignment="Center"
-                                                                    Background="{x:Bind StatusBrush, Mode=OneWay}">
-                                                                <TextBlock Text="{x:Bind StatusText, Mode=OneWay}"
-                                                                           FontSize="10.5" FontWeight="SemiBold"
-                                                                           Foreground="White" />
-                                                            </Border>
-                                                            <TextBlock Text="{x:Bind ResultDetail, Mode=OneWay}"
-                                                                       FontSize="12" Opacity="0.7"
-                                                                       VerticalAlignment="Center" TextWrapping="Wrap" />
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                    <!-- fixed header, edge-to-edge divider below; the details scroll on their own.
+                         First in XAML so initial focus lands here, not on the bottom buttons -->
+                    <Border Height="72" Padding="24,0"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="{x:Bind HeaderTitle}" IsTextSelectionEnabled="True"
+                                               Style="{StaticResource SubtitleTextBlockStyle}" />
+                                    <Border CornerRadius="10" Padding="8,1" VerticalAlignment="Center"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                                        <TextBlock Text="{x:Bind Drive.GenerationText}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{x:Bind StatusText, Mode=OneWay}"
+                                           Style="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis" />
                             </StackPanel>
-                        </ScrollViewer>
+                            <CheckBox Grid.Column="1" Content="Read-only" MinWidth="0" VerticalAlignment="Center"
+                                      IsChecked="{x:Bind ReadOnlyChecked, Mode=OneWay}"
+                                      IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
+                                      Click="SlotReadOnly_Click" />
+                            <ComboBox Grid.Column="2" VerticalAlignment="Center"
+                                      ItemsSource="{x:Bind Letters}"
+                                      SelectedIndex="{x:Bind SelectedLetterIndex, Mode=TwoWay}"
+                                      IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}" />
+                            <Button Grid.Column="3" VerticalAlignment="Center"
+                                    Style="{x:Bind ButtonStyle, Mode=OneWay}"
+                                    IsEnabled="{x:Bind ButtonEnabled, Mode=OneWay}"
+                                    Click="SlotAction_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ProgressRing IsActive="{x:Bind IsBusy, Mode=OneWay}"
+                                                  Width="16" Height="16"
+                                                  Visibility="{x:Bind SpinnerVisibility, Mode=OneWay}" />
+                                    <TextBlock Text="{x:Bind ButtonText, Mode=OneWay}" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
                     </Border>
-                </Grid>
-
-                <!-- ==================== Settings ==================== -->
-                <ScrollViewer x:Name="SettingsPanel" Padding="16,0" Visibility="Collapsed">
-                    <StackPanel x:Name="SettingsContent" Spacing="12" HorizontalAlignment="Center" Margin="0,12">
-                        <StackPanel>
-                            <TextBlock Text="Index capture" Style="{StaticResource SectionHeader}" />
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel Spacing="10">
-                                    <CheckBox x:Name="CaptureIndexCheck"
-                                              Content="Capture snapshot of index at mount/unmount time"
-                                              IsChecked="True" Click="SettingChanged" />
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Working folder" VerticalAlignment="Center" />
-                                        <TextBox x:Name="WorkFolderBox" Grid.Column="1" Text="C:\tmp\ltfs"
-                                                 LostFocus="SettingChanged" />
-                                    </Grid>
-                                    <TextBlock IsTextSelectionEnabled="True" Text="Snapshots are plain LTFS index XML — off-tape backups of the volume's metadata. Browse them on the Indexes page."
-                                               FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <StackPanel>
-                            <TextBlock Text="Index updates" Style="{StaticResource SectionHeader}" />
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel Spacing="8">
-                                    <CheckBox x:Name="OverridePolicyCheck"
-                                              Content="Override default index update policy"
-                                              Click="SettingChanged" />
-                                    <RadioButton x:Name="PolicyDismountRadio" GroupName="SyncPolicy"
-                                                 Content="when volume is dismounted" Margin="24,0,0,0"
-                                                 IsEnabled="False" Click="SettingChanged" />
-                                    <RadioButton x:Name="PolicyPeriodicRadio" GroupName="SyncPolicy"
-                                                 IsChecked="True" Margin="24,0,0,0"
-                                                 IsEnabled="False" Click="SettingChanged">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="periodically, every" VerticalAlignment="Center" />
-                                            <NumberBox x:Name="PeriodBox" Minimum="1" Maximum="1440"
-                                                       SmallChange="1" SpinButtonPlacementMode="Compact"
-                                                       ValueChanged="Period_ValueChanged" />
-                                            <TextBlock Text="minutes" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </RadioButton>
-                                    <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                               IsTextSelectionEnabled="True" Text="Default policy: the index is written to tape every time a modified file is closed (sync_type=close)." />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <StackPanel>
-                            <TextBlock Text="Advanced mount options" Style="{StaticResource SectionHeader}" />
-                            <Border Style="{StaticResource Card}">
+                    <!-- details: own scroll context below the header -->
+                    <ScrollViewer Grid.Row="1" VerticalAnchorRatio="NaN">
+                        <!-- same 960px centred container as the other pages (+24px gutters) -->
+                        <StackPanel Padding="24,16,24,24" Spacing="12" MaxWidth="1008">
+                            <!-- ============ Cartridge ============ -->
+                            <Expander IsExpanded="True"
+                                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <Expander.Header>
+                                    <StackPanel Style="{StaticResource DashSection}">
+                                        <FontIcon Glyph="&#xE96A;" FontSize="20" VerticalAlignment="Center" />
+                                        <TextBlock Text="Cartridge" Style="{StaticResource SubtitleTextBlockStyle}" />
+                                    </StackPanel>
+                                </Expander.Header>
                                 <StackPanel Spacing="12">
-                                    <StackPanel Spacing="4">
-                                        <CheckBox x:Name="AppendOnlyCheck"
-                                                  Content="Append-only mode (LTO-7 and newer)"
-                                                  Click="SettingChanged" />
-                                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                                   IsTextSelectionEnabled="True"
-                                                   Text="Stops data already on the tape being overwritten or erased — files can be added but not changed or removed. Only supported on LTO-7 and newer drives." />
-                                    </StackPanel>
-                                    <StackPanel Spacing="8">
-                                        <CheckBox x:Name="OverrideIndexCheck"
-                                                  Content="Request mount-time override of formatted configuration"
-                                                  Click="SettingChanged" />
-                                        <StackPanel Margin="28,0,0,0" Spacing="8">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="Files may be placed in the index partition if size &#8804;"
-                                                           VerticalAlignment="Center" TextWrapping="Wrap" />
-                                                <NumberBox x:Name="IndexSizeBox" Minimum="1" Maximum="999999"
-                                                           SmallChange="1" SpinButtonPlacementMode="Compact" Width="120"
-                                                           ValueChanged="IndexSize_ValueChanged" />
-                                                <ComboBox x:Name="IndexUnitCombo" VerticalAlignment="Center"
-                                                          SelectionChanged="SettingChanged">
-                                                    <ComboBoxItem Content="KB" />
-                                                    <ComboBoxItem Content="MB" />
-                                                    <ComboBoxItem Content="GB" />
-                                                </ComboBox>
-                                            </StackPanel>
-                                            <StackPanel Spacing="4">
-                                                <TextBlock Text="File name pattern(s)" />
-                                                <TextBox x:Name="IndexNameBox" PlaceholderText="*.jpg:*.gif"
-                                                         LostFocus="SettingChanged" />
-                                                <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                                           IsTextSelectionEnabled="True"
-                                                           Text="Filename pattern(s) to consider writing to index partition, colon-separated list e.g. *.jpg:*.gif" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                                   IsTextSelectionEnabled="True"
-                                                   Text="Keeps small, frequently-used files in the fast index partition for quicker access. Only applies if the cartridge was formatted to permit it (mkltfs without --no-override)." />
-                                    </StackPanel>
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Text="Support ticket folder" />
-                                        <TextBox x:Name="LogDirBox"
-                                                 PlaceholderText="C:\ProgramData\LTOG"
-                                                 LostFocus="SettingChanged" />
-                                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                                   IsTextSelectionEnabled="True"
-                                                   Text="Folder where LTFS should store all support tickets generated" />
-                                    </StackPanel>
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Logging verbosity" VerticalAlignment="Center" />
-                                        <ComboBox x:Name="VerbosityCombo" Grid.Column="1"
-                                                  HorizontalAlignment="Stretch"
-                                                  SelectionChanged="SettingChanged">
-                                            <ComboBoxItem Content="Normal" />
-                                            <ComboBoxItem Content="Verbose (trace)" />
-                                            <ComboBoxItem Content="Full trace (slow)" />
-                                        </ComboBox>
-                                    </Grid>
-                                    <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                               IsTextSelectionEnabled="True"
-                                               Text="These apply to new mounts. Higher verbosity noticeably slows the volume and is only for diagnosing problems." />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </StackPanel>
-                </ScrollViewer>
+                                    <TextBlock Text="{x:Bind CartridgeText, Mode=OneWay}" Opacity="0.6" Margin="2,0"
+                                               Visibility="{x:Bind NoCartridge, Mode=OneWay}" />
 
-                <!-- ==================== About ==================== -->
-                <ScrollViewer x:Name="AboutPanel" Padding="16,0" Visibility="Collapsed">
-                    <StackPanel x:Name="AboutContent" Spacing="12" HorizontalAlignment="Center" Margin="0,12">
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnSpacing="16">
+                                    <StackPanel Spacing="12" Visibility="{x:Bind HasCartridge, Mode=OneWay}">
+                                        <ContentPresenter Content="{x:Bind NameStat, Mode=OneWay}"
+                                                          ContentTemplate="{StaticResource StatTile}"
+                                                          HorizontalContentAlignment="Stretch" />
+                                        <Border Style="{StaticResource Card}" Padding="20,16"
+                                                Visibility="{x:Bind HasUsage, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind UsageSource, Mode=OneWay}">
+                                            <Grid RowSpacing="12" ColumnSpacing="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="Capacity" Style="{StaticResource DashLabel}" />
+                                                    <TextBlock Text="{x:Bind CapacityText, Mode=OneWay}" IsTextSelectionEnabled="True"
+                                                               Style="{StaticResource TitleTextBlockStyle}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="Free" Style="{StaticResource DashLabel}" />
+                                                    <TextBlock Text="{x:Bind FreeText, Mode=OneWay}" IsTextSelectionEnabled="True"
+                                                               Style="{StaticResource TitleTextBlockStyle}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Used" Style="{StaticResource DashLabel}" />
+                                                    <TextBlock Text="{x:Bind UsedText, Mode=OneWay}" IsTextSelectionEnabled="True"
+                                                               Style="{StaticResource TitleTextBlockStyle}" />
+                                                </StackPanel>
+                                                <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnSpacing="12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <ProgressBar Value="{x:Bind UsagePercent, Mode=OneWay}"
+                                                                 ShowError="{x:Bind UsageCritical, Mode=OneWay}"
+                                                                 VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind UsageText, Mode=OneWay}"
+                                                               Foreground="{x:Bind UsageBrush, Mode=OneWay}"
+                                                               Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+
+                                        <ItemsRepeater ItemsSource="{x:Bind CartridgeStats, Mode=OneWay}"
+                                                       ItemTemplate="{StaticResource StatTile}">
+                                            <ItemsRepeater.Layout>
+                                                <UniformGridLayout MinItemWidth="180" MinColumnSpacing="12" MinRowSpacing="12"
+                                                                   ItemsStretch="Fill" />
+                                            </ItemsRepeater.Layout>
+                                        </ItemsRepeater>
+                                        <!-- manufacturer + date: half the width each -->
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ContentPresenter Content="{x:Bind ManufacturerStat, Mode=OneWay}"
+                                                              ContentTemplate="{StaticResource StatTile}"
+                                                              HorizontalContentAlignment="Stretch" />
+                                            <ContentPresenter Grid.Column="1" Content="{x:Bind ManufacturedStat, Mode=OneWay}"
+                                                              ContentTemplate="{StaticResource StatTile}"
+                                                              HorizontalContentAlignment="Stretch" />
+                                        </Grid>
+                                        <!-- ItemsControl, not ItemsRepeater: nested virtualizing repeaters cycle layout -->
+                                        <ItemsControl ItemsSource="{x:Bind CartridgeGroups, Mode=OneWay}"
+                                                      ItemTemplate="{StaticResource StatGroupTemplate}" IsTabStop="False" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- ============ Tape Drive ============ -->
+                            <Expander IsExpanded="True"
+                                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <Expander.Header>
+                                    <StackPanel Style="{StaticResource DashSection}">
+                                        <FontIcon Glyph="&#xE967;" FontSize="20" VerticalAlignment="Center" />
+                                        <TextBlock Text="Tape Drive" Style="{StaticResource SubtitleTextBlockStyle}" />
+                                    </StackPanel>
+                                </Expander.Header>
+                                <StackPanel Spacing="12">
+                                    <ItemsRepeater ItemsSource="{x:Bind DriveStats, Mode=OneWay}"
+                                                   ItemTemplate="{StaticResource StatTile}">
+                                        <ItemsRepeater.Layout>
+                                            <UniformGridLayout MinItemWidth="180" MinColumnSpacing="12" MinRowSpacing="12"
+                                                               ItemsStretch="Fill" />
+                                        </ItemsRepeater.Layout>
+                                    </ItemsRepeater>
+                                    <!-- serial + firmware: half the width each -->
+                                    <ItemsRepeater ItemsSource="{x:Bind DriveIdStats, Mode=OneWay}"
+                                                   ItemTemplate="{StaticResource StatTile}">
+                                        <ItemsRepeater.Layout>
+                                            <UniformGridLayout MinColumnSpacing="12" MinRowSpacing="12"
+                                                               MaximumRowsOrColumns="2" ItemsStretch="Fill" />
+                                        </ItemsRepeater.Layout>
+                                    </ItemsRepeater>
+                                    <!-- ItemsControl, not ItemsRepeater: nested virtualizing repeaters cycle layout -->
+                                    <ItemsControl ItemsSource="{x:Bind DriveGroups, Mode=OneWay}"
+                                                  ItemTemplate="{StaticResource StatGroupTemplate}" IsTabStop="False" />
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- ============ Raw attributes ============ -->
+                            <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                      Visibility="{x:Bind HasMamAttributes, Mode=OneWay}">
+                                <Expander.Header>
+                                    <StackPanel Style="{StaticResource DashSection}">
+                                        <FontIcon Glyph="&#xE943;" FontSize="20" VerticalAlignment="Center" />
+                                        <TextBlock Text="All raw attributes" Style="{StaticResource SubtitleTextBlockStyle}" />
+                                    </StackPanel>
+                                </Expander.Header>
+                                <!-- table: header + rows share fixed/star columns so they line up.
+                                     ListView for multi-row selection (Shift/Ctrl, Ctrl+A); Ctrl+C / right-click
+                                     copies rows as tab-separated text with the header line -->
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="Select rows with Shift or Ctrl, then Ctrl+C or right-click to copy (includes the header)."
+                                               Style="{StaticResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <ListView ItemsSource="{x:Bind MamAttributes, Mode=OneWay}" SelectionMode="Extended"
+                                              ScrollViewer.VerticalScrollMode="Disabled">
+                                        <ListView.KeyboardAccelerators>
+                                            <KeyboardAccelerator Modifiers="Control" Key="C" Invoked="MamCopy_Invoked" />
+                                        </ListView.KeyboardAccelerators>
+                                        <ListView.ContextFlyout>
+                                            <MenuFlyout Opening="MamMenu_Opening">
+                                                <MenuFlyoutItem Text="Copy selected" KeyboardAcceleratorTextOverride="Ctrl+C"
+                                                                Click="MamCopySelected_Click" />
+                                                <MenuFlyoutItem Text="Copy all" Click="MamCopyAll_Click" />
+                                            </MenuFlyout>
+                                        </ListView.ContextFlyout>
+                                        <ListView.Header>
+                                            <Grid ColumnSpacing="12" Padding="16,6"
+                                                  Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                  BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="72" />
+                                                    <ColumnDefinition Width="2*" />
+                                                    <ColumnDefinition Width="72" />
+                                                    <ColumnDefinition Width="64" />
+                                                    <ColumnDefinition Width="3*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="ID" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="Attribute" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="2" Text="Partition" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="3" Text="Size" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="4" Text="Value" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                            </Grid>
+                                        </ListView.Header>
+                                        <ListView.ItemContainerStyle>
+                                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                                <Setter Property="MinHeight" Value="30" />
+                                                <Setter Property="Padding" Value="12,0" />
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                            </Style>
+                                        </ListView.ItemContainerStyle>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="local:MamRow">
+                                                <Grid ColumnSpacing="12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="72" />
+                                                        <ColumnDefinition Width="2*" />
+                                                        <ColumnDefinition Width="72" />
+                                                        <ColumnDefinition Width="64" />
+                                                        <ColumnDefinition Width="3*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Id}" FontFamily="Consolas" FontSize="12" />
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="12"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}" />
+                                                    <TextBlock Grid.Column="2" Text="{x:Bind Partition}" FontSize="12" />
+                                                    <TextBlock Grid.Column="3" Text="{x:Bind Size}" FontSize="12" />
+                                                    <TextBlock Grid.Column="4" Text="{x:Bind Value}" FontFamily="Consolas" FontSize="12"
+                                                               TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Hex}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- ============ Controls ============ -->
+                            <Grid ColumnSpacing="8" Margin="0,12,0,0">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Image x:Name="AboutIcon" Width="120" Height="120"
-                                       VerticalAlignment="Top" />
-                                <StackPanel Grid.Column="1" Spacing="4">
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <TextBlock Text="LTOG" FontSize="28" IsTextSelectionEnabled="True" FontWeight="SemiBold" />
-                                        <Border CornerRadius="12" Padding="10,4"
-                                                VerticalAlignment="Center"
-                                                Background="{ThemeResource ControlFillColorSecondaryBrush}"
-                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                                BorderThickness="1">
-                                            <TextBlock x:Name="AboutVersionText" Text="v0.0.0" IsTextSelectionEnabled="True"
-                                                       FontSize="14" FontWeight="SemiBold" Opacity="0.9" />
-                                        </Border>
-                                    </StackPanel>
-                                    <TextBlock Text="LTFS for Windows, presented through WinFsp" IsTextSelectionEnabled="True"
-                                               Opacity="0.8" TextWrapping="Wrap" />
-                                    <TextBlock x:Name="AboutBuildText" IsTextSelectionEnabled="True" FontSize="12" Opacity="0.65"
-                                               TextWrapping="Wrap" Margin="0,6,0,0" />
-                                    <Button Padding="4" Margin="-4,2,0,0" Background="Transparent"
-                                            BorderThickness="0" HorizontalAlignment="Left"
-                                            ToolTipService.ToolTip="github.com/rlaphoenix/LTOG"
-                                            Click="GitHub_Click">
-                                        <Viewbox Width="20" Height="20">
-                                            <PathIcon Data="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
-                                        </Viewbox>
-                                    </Button>
-                                </StackPanel>
+                                <Button Content="Format" HorizontalAlignment="Stretch"
+                                        IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
+                                        Click="SlotFormat_Click" />
+                                <Button Grid.Column="1" Content="Unformat" HorizontalAlignment="Stretch"
+                                        IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
+                                        Click="SlotUnformat_Click" />
+                                <Button Grid.Column="2" Content="Check" HorizontalAlignment="Stretch"
+                                        IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
+                                        Click="SlotCheck_Click" />
+                                <Button Grid.Column="3" Content="{x:Bind EjectLoadText, Mode=OneWay}"
+                                        HorizontalAlignment="Stretch"
+                                        IsEnabled="{x:Bind OptionsEnabled, Mode=OneWay}"
+                                        Click="SlotEjectLoad_Click" />
                             </Grid>
-                        </Border>
-
-                        <StackPanel>
-                            <TextBlock Text="Components" Style="{StaticResource SectionHeader}" />
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel Spacing="6">
-                                    <TextBlock x:Name="AboutLtfsText" IsTextSelectionEnabled="True" Text="LTFS engine: —"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock x:Name="AboutWinFspText" IsTextSelectionEnabled="True" Text="WinFsp: —"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock x:Name="AboutRuntimeText" IsTextSelectionEnabled="True" Text="Runtime: —"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
+                    </ScrollViewer>
 
-                        <StackPanel>
-                            <TextBlock Text="Credits" Style="{StaticResource SectionHeader}" />
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel Spacing="8">
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
-                                               Text="IBM — the original Linear Tape File System (libltfs and core utilities, IBM Almaden Research)." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
-                                               Text="Hewlett-Packard / HPE — the Windows port and the ltotape drive backend." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
-                                               Text="OSR Open Systems Resources — the original Windows FUSE integration in the HP tree." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
-                                               Text="WinLtfs — the LTFS + WinFsp tape engine LTOG bundles, porting HP's LTFS to WinFsp for modern Windows." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
-                                               Text="Bill Zissimopoulos — WinFsp, whose FUSE-compatible layer and signed driver make this approach possible." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.65" FontSize="12"
-                                               IsTextSelectionEnabled="True" Text="Assistance with porting and orchestration by Claude (Anthropic)." />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
+                </Grid>
+            </DataTemplate>
+        </Grid.Resources>
 
-                        <StackPanel>
-                            <TextBlock Text="License" Style="{StaticResource SectionHeader}" />
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel Spacing="8">
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
-                                               Text="LTOG is free software under the GNU General Public License v3.0." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
-                                               Text="It bundles third-party components under their own licenses: WinFsp (GPLv3 with FLOSS exception); the IBM/HP LTFS engine and GNU libiconv (LGPL-2.1); libxml2, ICU, zlib and the MinGW-w64 runtimes (permissive); the GCC runtime (GPLv3 with the Runtime Library Exception); the Microsoft Windows App SDK (Microsoft Software License Terms); and the .NET 8 runtime (MIT)." />
-                                    <TextBlock TextWrapping="Wrap" Opacity="0.65" FontSize="12" IsTextSelectionEnabled="True"
-                                               Text="Full per-component notices and license texts ship in this install (THIRD-PARTY-NOTICES.md and the licenses folder)." />
-                                    <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,2,0,0">
-                                        <HyperlinkButton Content="License (GPLv3)" Padding="0"
-                                                         NavigateUri="https://github.com/rlaphoenix/LTOG/blob/main/LICENSE" />
-                                        <HyperlinkButton Content="Third-party notices" Padding="0"
-                                                         NavigateUri="https://github.com/rlaphoenix/LTOG/blob/main/THIRD-PARTY-NOTICES.md" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- icon + name, then page switchers; About/Settings sit left of the caption buttons.
+             Two SelectorBars act as one group: selecting in one clears the other (Page_SelectionChanged) -->
+        <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+        <TitleBar x:Name="AppTitleBar">
+            <TitleBar.Resources>
+                <!-- template reserves a 48px drag gap before the caption buttons; the empty middle already drags -->
+                <x:Double x:Key="TitleBarMinDragRegionWidth">0</x:Double>
+                <!-- switchers follow the name instead of centring -->
+                <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Left</HorizontalAlignment>
+                <!-- don't fade the bar when the window is inactive (caption buttons: SyncCaptionColors) -->
+                <x:Double x:Key="TitleBarDeactivatedOpacity">1</x:Double>
+                <!-- tighter icon-to-name gap (default 16) -->
+                <Thickness x:Key="TitleBarIconMargin">0,0,10,0</Thickness>
+                <!-- switchers: subtle background for the selected page instead of the underline pill -->
+                <SolidColorBrush x:Key="SelectorBarItemPillFill" Color="Transparent" />
+                <StaticResource x:Key="SelectorBarItemBackgroundSelected" ResourceKey="SubtleFillColorSecondaryBrush" />
+                <StaticResource x:Key="SelectorBarItemBackgroundPointerOver" ResourceKey="SubtleFillColorTertiaryBrush" />
+                <StaticResource x:Key="SelectorBarItemBackgroundPressed" ResourceKey="SubtleFillColorTertiaryBrush" />
+                <StaticResource x:Key="SelectorBarItemForegroundPointerOver" ResourceKey="TextFillColorPrimaryBrush" />
+            </TitleBar.Resources>
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="ms-appx:///Assets/icon.png" />
+            </TitleBar.IconSource>
+            <StackPanel Orientation="Horizontal" Spacing="16">
+            <!-- own title text: TitleBar.Title is fixed to the small caption style -->
+            <TextBlock Text="LTOG" VerticalAlignment="Center" FontFamily="ms-appx:///Assets/Oxanium.ttf#Oxanium"
+                       FontWeight="ExtraBold" FontSize="20" CharacterSpacing="50"
+                       TextLineBounds="Tight" />
+            <SelectorBar x:Name="MainPages" HorizontalAlignment="Left" SelectionChanged="Page_SelectionChanged">
+                <SelectorBarItem Tag="drives" Text="Drives">
+                    <SelectorBarItem.Icon>
+                        <FontIcon Glyph="&#xEDA2;" />
+                    </SelectorBarItem.Icon>
+                </SelectorBarItem>
+                <SelectorBarItem Tag="log" Text="Log">
+                    <SelectorBarItem.Icon>
+                        <FontIcon Glyph="&#xE7C3;" />
+                    </SelectorBarItem.Icon>
+                </SelectorBarItem>
+                <SelectorBarItem Tag="index" Text="Indexes">
+                    <SelectorBarItem.Icon>
+                        <FontIcon Glyph="&#xE8F1;" />
+                    </SelectorBarItem.Icon>
+                </SelectorBarItem>
+            </SelectorBar>
+            </StackPanel>
+            <TitleBar.RightHeader>
+                <SelectorBar x:Name="TitleButtons" SelectionChanged="Page_SelectionChanged">
+                    <SelectorBarItem Tag="about" ToolTipService.ToolTip="About" AutomationProperties.Name="About">
+                        <SelectorBarItem.Icon>
+                            <FontIcon Glyph="&#xE946;" />
+                        </SelectorBarItem.Icon>
+                    </SelectorBarItem>
+                    <SelectorBarItem Tag="settings" ToolTipService.ToolTip="Settings" AutomationProperties.Name="Settings">
+                        <SelectorBarItem.Icon>
+                            <FontIcon Glyph="&#xE713;" />
+                        </SelectorBarItem.Icon>
+                    </SelectorBarItem>
+                </SelectorBar>
+            </TitleBar.RightHeader>
+        </TitleBar>
+        </Border>
+
+        <InfoBar x:Name="EnvBar" Grid.Row="1" Margin="12,8,12,0"
+                 IsOpen="False" Severity="Error" IsClosable="False"
+                 Visibility="Collapsed" />
+
+        <!-- tab strip only (pages live in PagesHost): one tab per drive, shown on Tape Drives with 2+ drives -->
+        <Border x:Name="TabStrip" Grid.Row="2" Visibility="Collapsed"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <!-- SizeToContent: full labels; TabView adds left/right scroll buttons on overflow -->
+            <TabView x:Name="Tabs" TabWidthMode="SizeToContent"
+                     IsAddTabButtonVisible="False" CanReorderTabs="False" CanDragTabs="False"
+                     SelectionChanged="Tabs_SelectionChanged">
+                <TabView.Resources>
+                    <Style TargetType="TabViewItem">
+                        <Setter Property="MinWidth" Value="180" />
+                    </Style>
+                </TabView.Resources>
+            </TabView>
+        </Border>
+
+        <Grid x:Name="PagesHost" Grid.Row="3" SizeChanged="PagesHost_SizeChanged">
+            <!-- ==================== Tape drives ==================== -->
+            <!-- one DrivePage per drive tab is added to PagesHost in code; other pages below -->
+            <ScrollViewer x:Name="NoDrivesText" Visibility="Collapsed" Padding="16,0">
+                <StackPanel MaxWidth="560" Spacing="20" Margin="0,48" VerticalAlignment="Center">
+                    <StackPanel Spacing="8" HorizontalAlignment="Center">
+                        <Grid HorizontalAlignment="Center" Margin="0,0,0,8">
+                            <FontIcon Glyph="&#xEDA2;" FontSize="72"
+                                      Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            <FontIcon Glyph="&#xE783;" FontSize="26" Margin="0,0,-10,-6"
+                                      HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                      Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                        </Grid>
+                        <TextBlock Text="No tape drives found" HorizontalAlignment="Center"
+                                   Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock Text="Connect a tape drive to get started. Follow these steps if one is already connected."
+                                   HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
-                </ScrollViewer>
+
+                    <Border Style="{StaticResource Card}" Padding="20">
+                        <StackPanel Spacing="16">
+                        <Grid ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="36" Height="36" CornerRadius="18" VerticalAlignment="Top"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                <FontIcon Glyph="&#xE7E8;" FontSize="16"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="1. Power it on" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="Switch the drive on and let its self-test finish." TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="36" Height="36" CornerRadius="18" VerticalAlignment="Top"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                <FontIcon Glyph="&#xE71B;" FontSize="16"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="2. Check the connection" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="Check the SAS, FC or USB cable and the host adapter." TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="36" Height="36" CornerRadius="18" VerticalAlignment="Top"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                <FontIcon Glyph="&#xE90F;" FontSize="16"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="3. Install the tape driver" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                <TextBlock Text="Install the vendor's LTO driver (HPE, IBM, Quantum...)." TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Button Content="Open Device Manager" HorizontalAlignment="Center" Click="DeviceManager_Click" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ==================== Indexes ==================== -->
+            <ScrollViewer x:Name="IndexPanel" Padding="16,0" Visibility="Collapsed">
+                <StackPanel x:Name="IndexContent" Spacing="12" HorizontalAlignment="Center" Margin="0,12">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Content="Open folder" Click="OpenWorkFolder_Click" />
+                        <Button Grid.Column="1" Content="Refresh" Click="RefreshSchemas_Click" />
+                        <ComboBox x:Name="SchemaSortCombo" Grid.Column="3" MinWidth="170"
+                                  SelectionChanged="SchemaSort_Changed">
+                            <ComboBoxItem Content="Name (A–Z)" />
+                            <ComboBoxItem Content="Name (Z–A)" />
+                            <ComboBoxItem Content="Newest captured" />
+                            <ComboBoxItem Content="Oldest captured" />
+                        </ComboBox>
+                    </Grid>
+                    <TextBlock x:Name="NoSchemasText" Text="No captured indexes yet."
+                               Opacity="0.6" Margin="2,0" />
+                    <ItemsControl x:Name="SchemaList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="local:SchemaItem">
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="1">
+                                            <TextBlock Text="{x:Bind Title}"
+                                                       Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                       IsTextSelectionEnabled="True" />
+                                            <TextBlock Text="{x:Bind GenLine}" FontSize="12"
+                                                       Opacity="0.75" TextWrapping="Wrap"
+                                                       IsTextSelectionEnabled="True" />
+                                            <TextBlock Text="{x:Bind CaptureLine}" FontSize="12"
+                                                       Opacity="0.75" TextWrapping="Wrap"
+                                                       IsTextSelectionEnabled="True" />
+                                            <TextBlock Text="{x:Bind Uuid}" FontSize="11"
+                                                       Opacity="0.5" TextWrapping="Wrap"
+                                                       IsTextSelectionEnabled="True" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="Open"
+                                                VerticalAlignment="Center"
+                                                Click="SchemaOpen_Click" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ==================== Log ==================== -->
+            <Grid x:Name="LogPanel" Margin="0,12" HorizontalAlignment="Center" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- toolbar -->
+                <Grid Margin="2,0,2,10" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Activity log" Style="{StaticResource SectionHeader}" Margin="0" />
+                        <TextBlock Text="Every LTFS, WinFsp and tape-drive call — full command line, output and result."
+                                   FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True" />
+                    </StackPanel>
+                    <CheckBox x:Name="AutoScrollCheck" Grid.Column="1" Content="Auto-scroll"
+                              IsChecked="True" VerticalAlignment="Center" />
+                    <Button Grid.Column="2" Content="Open log file"
+                            VerticalAlignment="Center" Click="OpenLogFile_Click" />
+                    <Button Grid.Column="3" Content="Clear"
+                            VerticalAlignment="Center" Click="ClearLog_Click" />
+                </Grid>
+
+                <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
+                    <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto" Padding="10">
+                        <StackPanel>
+                            <TextBlock x:Name="NoLogText" Text="No activity yet." Opacity="0.6" Margin="4"
+                                       Visibility="{x:Bind Activity.EmptyHint, Mode=OneWay}" />
+                            <ItemsControl ItemsSource="{x:Bind Activity.Entries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:LogEntry">
+                                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="1" CornerRadius="6" Margin="0,0,0,8">
+                                            <Grid>
+                                                <!-- per-kind accent bar -->
+                                                <Border Width="3" HorizontalAlignment="Left"
+                                                        CornerRadius="6,0,0,6"
+                                                        Background="{x:Bind AccentBrush}" />
+                                                <StackPanel Margin="14,9,12,10" Spacing="7">
+                                                    <!-- header: icon · title · time -->
+                                                    <Grid ColumnSpacing="8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <FontIcon Glyph="{x:Bind Glyph}" FontSize="15"
+                                                                  Foreground="{x:Bind AccentBrush}"
+                                                                  VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1" Text="{x:Bind Title}"
+                                                                   Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                                   TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                                                                   VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind Timestamp}"
+                                                                   FontFamily="Consolas" FontSize="12" Opacity="0.55"
+                                                                   VerticalAlignment="Center" />
+                                                    </Grid>
+
+                                                    <!-- full command line -->
+                                                    <Border Visibility="{x:Bind CommandVisibility}"
+                                                            Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                            BorderThickness="1" CornerRadius="4" Padding="9,7">
+                                                        <StackPanel Spacing="3">
+                                                            <TextBlock FontFamily="Consolas" FontSize="12.5"
+                                                                       TextWrapping="Wrap" IsTextSelectionEnabled="True">
+                                                                <Run Text="$ " Foreground="{x:Bind AccentBrush}" />
+                                                                <Run Text="{x:Bind CommandLine}" />
+                                                            </TextBlock>
+                                                            <TextBlock Visibility="{x:Bind WorkingDirVisibility}"
+                                                                       Text="{x:Bind WorkingDirText}"
+                                                                       FontFamily="Consolas" FontSize="11" Opacity="0.55"
+                                                                       TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- streamed output -->
+                                                    <Border Visibility="{x:Bind OutputVisibility, Mode=OneWay}"
+                                                            Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                                            CornerRadius="4" Padding="9,6">
+                                                        <RichTextBlock local:LogParagraph.Source="{x:Bind Lines}"
+                                                                       FontFamily="Consolas" FontSize="12"
+                                                                       TextWrapping="Wrap"
+                                                                       IsTextSelectionEnabled="True" />
+                                                    </Border>
+
+                                                    <!-- result footer -->
+                                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                                Visibility="{x:Bind ResultVisibility}">
+                                                        <ProgressRing Width="15" Height="15"
+                                                                      IsActive="{x:Bind Running, Mode=OneWay}"
+                                                                      Visibility="{x:Bind SpinnerVisibility, Mode=OneWay}" />
+                                                        <Border CornerRadius="9" Padding="9,2"
+                                                                VerticalAlignment="Center"
+                                                                Background="{x:Bind StatusBrush, Mode=OneWay}">
+                                                            <TextBlock Text="{x:Bind StatusText, Mode=OneWay}"
+                                                                       FontSize="10.5" FontWeight="SemiBold"
+                                                                       Foreground="White" />
+                                                        </Border>
+                                                        <TextBlock Text="{x:Bind ResultDetail, Mode=OneWay}"
+                                                                   FontSize="12" Opacity="0.7"
+                                                                   VerticalAlignment="Center" TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
             </Grid>
-        </NavigationView>
+
+            <!-- ==================== Settings ==================== -->
+            <ScrollViewer x:Name="SettingsPanel" Padding="16,0" Visibility="Collapsed">
+                <StackPanel x:Name="SettingsContent" Spacing="12" HorizontalAlignment="Center" Margin="0,12">
+                    <StackPanel>
+                        <TextBlock Text="Mounting" Style="{StaticResource SectionHeader}" />
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="8">
+                                <CheckBox x:Name="EjectAfterUnmountCheck"
+                                          Content="Eject cartridge after unmount"
+                                          Click="SettingChanged" />
+                                <CheckBox x:Name="RemountCheck"
+                                          Content="Remount at system start-up"
+                                          Click="SettingChanged" />
+                                <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                           IsTextSelectionEnabled="True"
+                                           Text="Applies to every tape drive. Start-up remount restores each drive that was mounted when LTOG last ran, on the same letter." />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="Index capture" Style="{StaticResource SectionHeader}" />
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="10">
+                                <CheckBox x:Name="CaptureIndexCheck"
+                                          Content="Capture snapshot of index at mount/unmount time"
+                                          IsChecked="True" Click="SettingChanged" />
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Working folder" VerticalAlignment="Center" />
+                                    <TextBox x:Name="WorkFolderBox" Grid.Column="1" Text="C:\tmp\ltfs"
+                                             LostFocus="SettingChanged" />
+                                </Grid>
+                                <TextBlock IsTextSelectionEnabled="True" Text="Snapshots are plain LTFS index XML — off-tape backups of the volume's metadata. Browse them on the Indexes page."
+                                           FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="Index updates" Style="{StaticResource SectionHeader}" />
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="8">
+                                <CheckBox x:Name="OverridePolicyCheck"
+                                          Content="Override default index update policy"
+                                          Click="SettingChanged" />
+                                <RadioButton x:Name="PolicyDismountRadio" GroupName="SyncPolicy"
+                                             Content="when volume is dismounted" Margin="24,0,0,0"
+                                             IsEnabled="False" Click="SettingChanged" />
+                                <RadioButton x:Name="PolicyPeriodicRadio" GroupName="SyncPolicy"
+                                             IsChecked="True" Margin="24,0,0,0"
+                                             IsEnabled="False" Click="SettingChanged">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="periodically, every" VerticalAlignment="Center" />
+                                        <NumberBox x:Name="PeriodBox" Minimum="1" Maximum="1440"
+                                                   SmallChange="1" SpinButtonPlacementMode="Compact"
+                                                   ValueChanged="Period_ValueChanged" />
+                                        <TextBlock Text="minutes" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                           IsTextSelectionEnabled="True" Text="Default policy: the index is written to tape every time a modified file is closed (sync_type=close)." />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="Advanced mount options" Style="{StaticResource SectionHeader}" />
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="12">
+                                <StackPanel Spacing="4">
+                                    <CheckBox x:Name="AppendOnlyCheck"
+                                              Content="Append-only mode (LTO-7 and newer)"
+                                              Click="SettingChanged" />
+                                    <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                               IsTextSelectionEnabled="True"
+                                               Text="Stops data already on the tape being overwritten or erased — files can be added but not changed or removed. Only supported on LTO-7 and newer drives." />
+                                </StackPanel>
+                                <StackPanel Spacing="8">
+                                    <CheckBox x:Name="OverrideIndexCheck"
+                                              Content="Request mount-time override of formatted configuration"
+                                              Click="SettingChanged" />
+                                    <StackPanel Margin="28,0,0,0" Spacing="8">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="Files may be placed in the index partition if size &#8804;"
+                                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+                                            <NumberBox x:Name="IndexSizeBox" Minimum="1" Maximum="999999"
+                                                       SmallChange="1" SpinButtonPlacementMode="Compact" Width="120"
+                                                       ValueChanged="IndexSize_ValueChanged" />
+                                            <ComboBox x:Name="IndexUnitCombo" VerticalAlignment="Center"
+                                                      SelectionChanged="SettingChanged">
+                                                <ComboBoxItem Content="KB" />
+                                                <ComboBoxItem Content="MB" />
+                                                <ComboBoxItem Content="GB" />
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="File name pattern(s)" />
+                                            <TextBox x:Name="IndexNameBox" PlaceholderText="*.jpg:*.gif"
+                                                     LostFocus="SettingChanged" />
+                                            <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                                       IsTextSelectionEnabled="True"
+                                                       Text="Filename pattern(s) to consider writing to index partition, colon-separated list e.g. *.jpg:*.gif" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                               IsTextSelectionEnabled="True"
+                                               Text="Keeps small, frequently-used files in the fast index partition for quicker access. Only applies if the cartridge was formatted to permit it (mkltfs without --no-override)." />
+                                </StackPanel>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Support ticket folder" />
+                                    <TextBox x:Name="LogDirBox"
+                                             PlaceholderText="C:\ProgramData\LTOG"
+                                             LostFocus="SettingChanged" />
+                                    <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                               IsTextSelectionEnabled="True"
+                                               Text="Folder where LTFS should store all support tickets generated" />
+                                </StackPanel>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Logging verbosity" VerticalAlignment="Center" />
+                                    <ComboBox x:Name="VerbosityCombo" Grid.Column="1"
+                                              HorizontalAlignment="Stretch"
+                                              SelectionChanged="SettingChanged">
+                                        <ComboBoxItem Content="Normal" />
+                                        <ComboBoxItem Content="Verbose (trace)" />
+                                        <ComboBoxItem Content="Full trace (slow)" />
+                                    </ComboBox>
+                                </Grid>
+                                <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                           IsTextSelectionEnabled="True"
+                                           Text="These apply to new mounts. Higher verbosity noticeably slows the volume and is only for diagnosing problems." />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ==================== About ==================== -->
+            <ScrollViewer x:Name="AboutPanel" Padding="16,0" Visibility="Collapsed">
+                <StackPanel x:Name="AboutContent" Spacing="12" HorizontalAlignment="Center" Margin="0,12">
+                    <Border Style="{StaticResource Card}">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Image x:Name="AboutIcon" Width="120" Height="120"
+                                   VerticalAlignment="Top" />
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="LTOG" FontSize="28" IsTextSelectionEnabled="True" FontWeight="SemiBold" />
+                                    <Border CornerRadius="12" Padding="10,4"
+                                            VerticalAlignment="Center"
+                                            Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1">
+                                        <TextBlock x:Name="AboutVersionText" Text="v0.0.0" IsTextSelectionEnabled="True"
+                                                   FontSize="14" FontWeight="SemiBold" Opacity="0.9" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="LTFS for Windows, presented through WinFsp" IsTextSelectionEnabled="True"
+                                           Opacity="0.8" TextWrapping="Wrap" />
+                                <TextBlock x:Name="AboutBuildText" IsTextSelectionEnabled="True" FontSize="12" Opacity="0.65"
+                                           TextWrapping="Wrap" Margin="0,6,0,0" />
+                                <Button Padding="4" Margin="-4,2,0,0" Background="Transparent"
+                                        BorderThickness="0" HorizontalAlignment="Left"
+                                        ToolTipService.ToolTip="github.com/rlaphoenix/LTOG"
+                                        Click="GitHub_Click">
+                                    <Viewbox Width="20" Height="20">
+                                        <PathIcon Data="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+                                    </Viewbox>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel>
+                        <TextBlock Text="Components" Style="{StaticResource SectionHeader}" />
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="AboutLtfsText" IsTextSelectionEnabled="True" Text="LTFS engine: —"
+                                           TextWrapping="Wrap" />
+                                <TextBlock x:Name="AboutWinFspText" IsTextSelectionEnabled="True" Text="WinFsp: —"
+                                           TextWrapping="Wrap" />
+                                <TextBlock x:Name="AboutRuntimeText" IsTextSelectionEnabled="True" Text="Runtime: —"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="Credits" Style="{StaticResource SectionHeader}" />
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="8">
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
+                                           Text="IBM — the original Linear Tape File System (libltfs and core utilities, IBM Almaden Research)." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
+                                           Text="Hewlett-Packard / HPE — the Windows port and the ltotape drive backend." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
+                                           Text="OSR Open Systems Resources — the original Windows FUSE integration in the HP tree." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
+                                           Text="WinLtfs — the LTFS + WinFsp tape engine LTOG bundles, porting HP's LTFS to WinFsp for modern Windows." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
+                                           Text="Bill Zissimopoulos — WinFsp, whose FUSE-compatible layer and signed driver make this approach possible." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.65" FontSize="12"
+                                           IsTextSelectionEnabled="True" Text="Assistance with porting and orchestration by Claude (Anthropic)." />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="License" Style="{StaticResource SectionHeader}" />
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel Spacing="8">
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
+                                           Text="LTOG is free software under the GNU General Public License v3.0." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.85" IsTextSelectionEnabled="True"
+                                           Text="It bundles third-party components under their own licenses: WinFsp (GPLv3 with FLOSS exception); the IBM/HP LTFS engine and GNU libiconv (LGPL-2.1); libxml2, ICU, zlib and the MinGW-w64 runtimes (permissive); the GCC runtime (GPLv3 with the Runtime Library Exception); the Microsoft Windows App SDK (Microsoft Software License Terms); and the .NET 8 runtime (MIT)." />
+                                <TextBlock TextWrapping="Wrap" Opacity="0.65" FontSize="12" IsTextSelectionEnabled="True"
+                                           Text="Full per-component notices and license texts ship in this install (THIRD-PARTY-NOTICES.md and the licenses folder)." />
+                                <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,2,0,0">
+                                    <HyperlinkButton Content="License (GPLv3)" Padding="0"
+                                                     NavigateUri="https://github.com/rlaphoenix/LTOG/blob/main/LICENSE" />
+                                    <HyperlinkButton Content="Third-party notices" Padding="0"
+                                                     NavigateUri="https://github.com/rlaphoenix/LTOG/blob/main/THIRD-PARTY-NOTICES.md" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
 
     </Grid>
 </Window>

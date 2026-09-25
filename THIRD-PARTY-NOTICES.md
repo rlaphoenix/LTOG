@@ -93,6 +93,14 @@ installer and run to install the signed kernel driver)
 - **Copyright:** © 1995-present Jean-loup Gailly and Mark Adler.
 - **Source:** <https://zlib.net/>
 
+## Oxanium — SIL Open Font License 1.1
+
+`Assets\Oxanium.ttf` (title-bar font)
+
+- **License:** SIL OFL 1.1 — [`licenses/Oxanium-OFL.txt`](licenses/Oxanium-OFL.txt)
+- **Copyright:** © 2019 The Oxanium Project Authors.
+- **Source:** <https://github.com/sevmeyer/oxanium>
+
 ---
 
 ## GUI runtime — Microsoft components
