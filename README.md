@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="gui/Assets/icon.png" alt="" width="16" /> <a href="https://github.com/rlaphoenix/LTOG">LTOG</a>
-  <br/>
-  <sup><em>Modern LTO Tape Manager with <a href="https://www.lto.org/ltfs/">LTFS 2.4</a> and <a href="https://github.com/rlaphoenix/WinLtfs">WinLtfs-based tape mounting</a></em></sup>
-</p>
+<h1 align="center"><img src="gui/Assets/icon.png" alt="" width="24" /> LTOG</h1>
 
 <p align="center">
   <a href="https://github.com/rlaphoenix/LTOG/blob/main/LICENSE">
@@ -18,6 +14,12 @@
 </p>
 
 ![Screenshot](screenshot.png)
+
+LTOG is a modern LTO tape manager for Windows that lets you use tape like any other drive. Format a
+cartridge with [LTFS 2.4](https://www.lto.org/ltfs/), mount it as a drive letter, and drag, drop, and
+browse files in File Explorer without proprietary backup software. Tapes follow the open LTFS standard,
+so they stay readable on any LTFS-compatible system. Tape mounting is powered by
+[WinLtfs](https://github.com/rlaphoenix/WinLtfs).
 
 > [!WARNING]
 > It is highly recommended to Copy files instead of Moving files or risk losing your data. While every
