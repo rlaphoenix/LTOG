@@ -72,7 +72,7 @@ function Info([string]$m) { Write-Host "    $m" }
 function Remove-RepoPath([string]$path) {
     $full = [IO.Path]::GetFullPath($path)
     $rootFull = [IO.Path]::GetFullPath($Root)
-    if (-not $full.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase) -or $full -eq $rootFull) {
+    if (-not $full.TrimEnd('\').StartsWith($rootFull.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
         throw "refusing to delete '$full' (outside the repo)"
     }
     if (Test-Path -LiteralPath $full) {
