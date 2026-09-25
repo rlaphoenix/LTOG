@@ -6,15 +6,14 @@
 
 <p align="center">
   <a href="https://github.com/rlaphoenix/LTOG/blob/main/LICENSE">
-    <img src="https://img.shields.io/:license-GPL%203.0-blue.svg" alt="License">
+    <img src="https://img.shields.io/:license-GPL%203.0-blue.svg?style=for-the-badge" alt="License">
   </a>
-  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-informational" alt="Platform">
-  <a href="https://dotnet.microsoft.com">
-    <img src="https://img.shields.io/badge/.NET-8.0-512BD4" alt=".NET 8">
+  <img src="https://img.shields.io/badge/platform-Windows%207%2B-informational?style=for-the-badge" alt="Platform">
+  <a href="https://github.com/microsoft/microsoft-ui-xaml">
+    <img src="https://img.shields.io/badge/WinUI-3-blue?style=for-the-badge" alt="WinUI 3">
   </a>
-  <img src="https://img.shields.io/badge/LTFS-2.4.0-blue" alt="LTFS 2.4.0">
   <a href="https://github.com/rlaphoenix/WinLtfs">
-    <img src="https://img.shields.io/badge/WinLtfs-1.2.0-informational" alt="WinLtfs 1.2.0">
+    <img src="https://img.shields.io/badge/WinLtfs-1.2.0-informational?style=for-the-badge" alt="WinLtfs 1.2.0">
   </a>
 </p>
 
