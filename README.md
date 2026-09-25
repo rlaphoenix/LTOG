@@ -1,7 +1,7 @@
 <p align="center">
   <img src="gui/Assets/icon.png" alt="" width="16" /> <a href="https://github.com/rlaphoenix/LTOG">LTOG</a>
   <br/>
-  <sup><em>Modern LTO Tape Manager with <a href="https://www.lto.org/ltfs/">LTFS 2.4</a> and <a href="https://github.com/winfsp/winfsp">WinFsp-based tape mounting</a></em></sup>
+  <sup><em>Modern LTO Tape Manager with <a href="https://www.lto.org/ltfs/">LTFS 2.4</a> and <a href="https://github.com/rlaphoenix/WinLtfs">WinLtfs-based tape mounting</a></em></sup>
 </p>
 
 <p align="center">
@@ -13,8 +13,8 @@
     <img src="https://img.shields.io/badge/.NET-8.0-512BD4" alt=".NET 8">
   </a>
   <img src="https://img.shields.io/badge/LTFS-2.4.0-blue" alt="LTFS 2.4.0">
-  <a href="https://winfsp.dev">
-    <img src="https://img.shields.io/badge/WinFsp-2.1-informational" alt="WinFsp">
+  <a href="https://github.com/rlaphoenix/WinLtfs">
+    <img src="https://img.shields.io/badge/WinLtfs-1.2.0-informational" alt="WinLtfs 1.2.0">
   </a>
 </p>
 
