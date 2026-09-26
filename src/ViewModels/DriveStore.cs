@@ -89,22 +89,19 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
         }
     }
 
-    /// <summary>Unmount, or cancel a mount that's still starting. If ltfs.exe can't be signalled, the mount is kept.</summary>
-    public async Task UnmountAsync(DriveViewModel vm)
+    /// <summary>
+    /// Unmount, or cancel a mount that's still starting. This only signals ltfs.exe;
+    /// its exit then releases the mount (<see cref="WatchForExit"/>, or MountAsync's
+    /// failure path while starting). If it can't be signalled, the mount is kept.
+    /// </summary>
+    public void Unmount(DriveViewModel vm)
     {
         if (vm.Mapping is not { } mapping) { vm.Phase = MountPhase.Idle; return; }
-        var phaseBefore = vm.Phase;
-        bool wasMounting = phaseBefore == MountPhase.Mounting;
-        bool unmounted = false;
+        if (mapping.Proc is not { } p) return;   // ltfs.exe not started yet: nothing to signal
+        if (p.HasExited) { Release(vm, mapping); return; }   // already gone, but never released
+        if (!MountManager.SignalUnmount(mapping, p, log)) return;
+        if (vm.Phase == MountPhase.Mounting) log.Note($"[{mapping.Letter}] cancelling mount");
         vm.Phase = MountPhase.Unmounting;
-        try { unmounted = await MountManager.UnmountAsync(mapping, log); }
-        finally
-        {
-            if (!unmounted) vm.Phase = phaseBefore;
-        }
-        if (!unmounted) return;
-        Release(vm, mapping);
-        if (wasMounting) log.Note($"[{mapping.Letter}] mount cancelled");
     }
 
     /// <summary>The mount is gone (ltfs.exe exited): free its letter, saved entry and monitor state.</summary>
@@ -120,18 +117,25 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
     }
 
     /// <summary>
-    /// Release a mount whose ltfs.exe exits on its own (crash, ended in Task Manager, ...).
-    /// An exit during Unmount is left to <see cref="UnmountAsync"/>.
+    /// Release the mount once its ltfs.exe exits: after <see cref="Unmount"/>, or on its
+    /// own (crash, ended in Task Manager, ...), which is logged as an error.
     /// </summary>
     private async void WatchForExit(DriveViewModel vm, Mapping mapping)
     {
         var p = mapping.Proc!;
         try { await p.WaitForExitAsync(); }
-        catch { return; }   // can't be waited on: Unmount still tidies up
-        if (vm.Mapping != mapping || vm.Phase == MountPhase.Unmounting) return;
-        string code;
-        try { code = $"exit {p.ExitCode}"; } catch { code = "exit code unknown"; }
-        log.Note($"{mapping.Letter}: ltfs.exe exited unexpectedly ({code}), the volume is no longer mounted.", isError: true);
+        catch { return; }   // can't be waited on: pressing Unmount after it exits releases it
+        if (vm.Mapping != mapping) return;
+        if (vm.Phase == MountPhase.Unmounting)
+        {
+            log.Note($"{mapping.Letter} unmounted.");
+        }
+        else
+        {
+            string code;
+            try { code = $"exit {p.ExitCode}"; } catch { code = "exit code unknown"; }
+            log.Note($"{mapping.Letter}: ltfs.exe exited unexpectedly ({code}), the volume is no longer mounted.", isError: true);
+        }
         Release(vm, mapping);
     }
 
@@ -166,7 +170,6 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
                 Device = p.Device,
                 Description = vm.Drive.Display,
                 ReadOnly = p.ReadOnly,
-                Pid = pid.Value,
                 // The real volume label WinFsp set from -o volname.
                 VolumeName = MountManager.GetVolumeLabel(p.Letter),
                 Proc = proc,

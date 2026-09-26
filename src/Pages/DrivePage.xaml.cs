@@ -34,7 +34,7 @@ public sealed partial class DrivePage : UserControl
                 break;
             case MountPhase.Mounting:   // Cancel
             case MountPhase.Mounted:    // Unmount
-                await App.DriveStore.UnmountAsync(ViewModel);
+                App.DriveStore.Unmount(ViewModel);
                 break;
         }
     }
