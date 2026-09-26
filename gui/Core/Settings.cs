@@ -79,6 +79,21 @@ public class Settings
         File.WriteAllText(FilePath, JsonSerializer.Serialize(this, JsonOpts));
     }
 
+    /// <summary>The autostart entry exists iff remount-at-startup is on and something is mounted.</summary>
+    public void ApplyRunKey()
+    {
+        using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
+        if (RemountAtStartup && Mappings.Count > 0)
+        {
+            string exe = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "LTOG.exe");
+            key.SetValue("LTOG", $"\"{exe}\" --remount");
+        }
+        else
+        {
+            key.DeleteValue("LTOG", false);
+        }
+    }
+
     /// <summary>The ltfs <c>-o rules=</c> value from the index-placement fields, or "" when off.</summary>
     public string ComposeIndexRules()
     {

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using LTOG.Gui.Core;
 using Microsoft.UI.Xaml;
 
 namespace LTOG.Gui;
@@ -7,6 +8,14 @@ namespace LTOG.Gui;
 public partial class App : Application
 {
     public static bool AutoRemount { get; private set; }
+
+    // ---- shared services (created once in OnLaunched, on the UI thread) ----
+    public static Settings Settings { get; } = Settings.Load();
+    /// <summary>Structured log of every LTFS/WinFsp/tape-drive invocation (Log page).</summary>
+    public static ActivityLog Activity { get; private set; } = null!;
+    /// <summary>False when ltfs.exe / ltfs.conf weren't found: drive actions stay disabled.</summary>
+    public static bool EnvOk { get; private set; }
+    public static DriveStore DriveStore { get; private set; } = null!;
     private MainWindow? _window;
 
     private static Mutex? _singleInstance;
@@ -39,6 +48,10 @@ public partial class App : Application
 
         try
         {
+            // on the UI thread: the log resolves its theme brushes
+            Activity = new ActivityLog(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
+            EnvOk = LtfsEnv.Resolve(Settings.DistPath);
+            DriveStore = new DriveStore(Settings, Activity, EnvOk);
             _window = new MainWindow();
             _window.Activate();
         }

@@ -5,6 +5,70 @@ namespace LTOG.Gui;
 
 internal static class SchemaParser
 {
+    /// <summary>
+    /// Extract the interesting bits of an LTFS index snapshot: volume name,
+    /// generation, on-tape update time, file count, volume UUID.
+    /// </summary>
+    public static SchemaItem Summarize(FileInfo f)
+    {
+        string? name = null, uuid = null, gen = null, updated = null;
+        int fileCount = 0;
+        try
+        {
+            using var reader = System.Xml.XmlReader.Create(f.FullName,
+                new System.Xml.XmlReaderSettings { IgnoreWhitespace = true, IgnoreComments = true });
+            while (reader.Read())
+            {
+                if (reader.NodeType != System.Xml.XmlNodeType.Element) continue;
+                switch (reader.LocalName)
+                {
+                    case "name" when name == null:           // first <name> = volume name
+                        name = reader.ReadElementContentAsString();
+                        break;
+                    case "volumeuuid" when uuid == null:
+                        uuid = reader.ReadElementContentAsString();
+                        break;
+                    case "generationnumber" when gen == null:
+                        gen = reader.ReadElementContentAsString();
+                        break;
+                    case "updatetime" when updated == null:
+                        updated = reader.ReadElementContentAsString();
+                        break;
+                    case "file":
+                        fileCount++;
+                        break;
+                }
+            }
+        }
+        catch
+        {
+            return new SchemaItem
+            {
+                Title = f.Name,
+                GenLine = "Unreadable index snapshot",
+                CaptureLine = $"Captured {f.LastWriteTime:yyyy-MM-dd HH:mm}, {f.Length / 1024.0:0.#} KB",
+                Path = f.FullName,
+                Captured = f.LastWriteTime,
+            };
+        }
+
+        string updatedText = "";
+        if (updated != null && DateTime.TryParse(updated, null,
+                System.Globalization.DateTimeStyles.AdjustToUniversal, out var dt))
+            updatedText = $", tape index written {dt.ToLocalTime():yyyy-MM-dd HH:mm}";
+
+        return new SchemaItem
+        {
+            Title = string.IsNullOrEmpty(name) ? "(unlabelled volume)" : name,
+            GenLine = $"Index generation {gen ?? "?"}{updatedText}",
+            CaptureLine = $"Captured {f.LastWriteTime:yyyy-MM-dd HH:mm}, " +
+                          $"{fileCount:N0} file{(fileCount == 1 ? "" : "s")}, {f.Length / 1024.0:0.#} KB",
+            Uuid = uuid ?? "",
+            Path = f.FullName,
+            Captured = f.LastWriteTime,
+        };
+    }
+
     public static SchemaSnapshot Parse(FileInfo f)
     {
         var doc = XDocument.Load(f.FullName, LoadOptions.None);

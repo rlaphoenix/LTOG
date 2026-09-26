@@ -1,162 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Globalization;
 using LTOG.Gui.Core;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
 namespace LTOG.Gui;
 
-public enum SlotPhase { Idle, Mounting, Mounted, Unmounting }
-
-/// <summary>One captured index snapshot, parsed for display.</summary>
-public sealed class SchemaItem
-{
-    public string Title { get; set; } = "";        // volume name
-    public string GenLine { get; set; } = "";      // generation + on-tape update time
-    public string CaptureLine { get; set; } = "";  // capture time, file count, size
-    public string Uuid { get; set; } = "";         // volume UUID (ties snapshot to cartridge)
-    public string Path { get; set; } = "";         // snapshot file on disk
-    public DateTime Captured { get; set; }         // snapshot file write time (for sorting)
-}
-
-/// <summary>Parsed LTFS index snapshot used by the visual browser.</summary>
-public sealed class SchemaSnapshot
-{
-    public string Path { get; init; } = "";
-    public string FileName { get; init; } = "";
-    public string VolumeName { get; set; } = "(unlabelled volume)";
-    public string FormatVersion { get; set; } = "";
-    public string Creator { get; set; } = "";
-    public string VolumeUuid { get; set; } = "";
-    public string GenerationNumber { get; set; } = "?";
-    public string UpdatedText { get; set; } = "";
-    public string LocationText { get; set; } = "";
-    public string PreviousLocationText { get; set; } = "";
-    public string HighestFileUid { get; set; } = "";
-    public string PolicyOverrideText { get; set; } = "Not specified";
-    public string VolumeLockState { get; set; } = "";
-    public int DirectoryCount { get; set; }
-    public int FileCount { get; set; }
-    public long TotalBytes { get; set; }
-    public SchemaNode? Root { get; set; }
-
-    public string Title => string.IsNullOrWhiteSpace(VolumeName) ? FileName : VolumeName;
-    public string CountText => $"{DirectoryCount:N0} director{(DirectoryCount == 1 ? "y" : "ies")}, " +
-                               $"{FileCount:N0} file{(FileCount == 1 ? "" : "s")}";
-    public string BytesText => FormatBytes(TotalBytes);
-
-    /// <summary>"1.36 TiB (1,498,000,000,000 bytes)"</summary>
-    public static string FormatBytes(long bytes) =>
-        bytes < 1024 ? $"{bytes:N0} B" : $"{FormatSize(bytes)} ({bytes:N0} bytes)";
-
-    /// <summary>Binary units, labelled as such: "1.36 TiB".</summary>
-    public static string FormatSize(long bytes)
-    {
-        string[] units = { "B", "KiB", "MiB", "GiB", "TiB", "PiB" };
-        double value = Math.Max(0, bytes);
-        int unit = 0;
-        while (value >= 1024 && unit < units.Length - 1)
-        {
-            value /= 1024;
-            unit++;
-        }
-        return unit == 0 ? $"{bytes:N0} B" : $"{value:0.##} {units[unit]}";
-    }
-}
-
-/// <summary>One directory or file inside an LTFS index snapshot.</summary>
-public sealed class SchemaNode : INotifyPropertyChanged
-{
-    private bool _expanded;
-
-    public string Name { get; set; } = "";
-    public string Path { get; set; } = "";
-    public string Type { get; set; } = "Directory";
-    public bool IsDirectory { get; set; }
-    public bool ReadOnly { get; set; }
-    public bool OpenForWrite { get; set; }
-    public string FileUid { get; set; } = "";
-    public long? Length { get; set; }
-    public string CreationTime { get; set; } = "";
-    public string ChangeTime { get; set; } = "";
-    public string ModifyTime { get; set; } = "";
-    public string AccessTime { get; set; } = "";
-    public string BackupTime { get; set; } = "";
-    public string FirstLocationText => Extents.Count == 0
-        ? "Not specified"
-        : $"Partition {Extents[0].PartitionDisplay} starting from block {Extents[0].StartBlockDisplay}";
-    public int Depth { get; set; }
-    public List<SchemaNode> Children { get; } = new();
-    public ObservableCollection<SchemaExtent> Extents { get; } = new();
-
-    public bool Expanded
-    {
-        get => _expanded;
-        set
-        {
-            if (_expanded == value) return;
-            _expanded = value;
-            Raise(nameof(Expanded));
-            Raise(nameof(ExpandGlyph));
-        }
-    }
-
-    public bool CanExpand => Children.Count > 0;
-    public string ExpandGlyph => !CanExpand ? "" : Expanded ? "\uE70D" : "\uE76C"; // ChevronDown / ChevronRight
-    public double ExpandButtonOpacity => CanExpand ? 1 : 0;
-    public string IconGlyph => IsDirectory ? "\uE8B7" : "\uE8A5"; // Folder / Document
-    public Thickness RowMargin => new(Math.Min(Depth, 12) * 18, 0, 0, 0);
-    public string LengthText => IsDirectory
-        ? $"{Children.Count:N0} item{(Children.Count == 1 ? "" : "s")}"
-        : Length.HasValue ? SchemaSnapshot.FormatBytes(Length.Value) : "";
-    public string FlagsText
-    {
-        get
-        {
-            var flags = new List<string>();
-            if (ReadOnly) flags.Add("read-only");
-            if (OpenForWrite) flags.Add("open for write");
-            return flags.Count == 0 ? "none" : string.Join(", ", flags);
-        }
-    }
-
-    private void Raise(string name) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-}
-
-/// <summary>Tree row wrapper so WinUI TreeView can bind to lazy nodes safely.</summary>
-public sealed class SchemaTreeRow
-{
-    public SchemaNode Node { get; }
-
-    public SchemaTreeRow(SchemaNode node) => Node = node;
-
-    public string Name => Node.Name;
-    public string IconGlyph => Node.IconGlyph;
-}
-
-/// <summary>One tape extent for a file in an LTFS index snapshot.</summary>
-public sealed class SchemaExtent
-{
-    public string FileOffset { get; set; } = "";
-    public string Partition { get; set; } = "";
-    public string StartBlock { get; set; } = "";
-    public string ByteOffset { get; set; } = "";
-    public string ByteCount { get; set; } = "";
-
-    public string PartitionDisplay => Blank(Partition);
-    public string StartBlockDisplay => Blank(StartBlock);
-    public string LocationText => $"partition {PartitionDisplay}, block {StartBlockDisplay}";
-    public string OffsetText => $"file offset {Blank(FileOffset)}, byte offset {Blank(ByteOffset)}";
-    public string ByteCountText => long.TryParse(ByteCount, NumberStyles.Integer, CultureInfo.InvariantCulture, out var bytes)
-        ? SchemaSnapshot.FormatBytes(bytes)
-        : Blank(ByteCount);
-
-    private static string Blank(string value) => string.IsNullOrWhiteSpace(value) ? "?" : value;
-}
+public enum MountPhase { Idle, Mounting, Mounted, Unmounting }
 
 /// <summary>One label/value cell on the drive dashboard.</summary>
 public sealed record Stat(string Label, string Value);
@@ -174,10 +24,10 @@ public sealed record StatGroup(string Title, IReadOnlyList<Stat> Items, int MaxC
 }
 
 /// <summary>
-/// Per-tape-drive tab: drive identity, cartridge dashboard, mount options
-/// and the mount/unmount state machine.
+/// The view model behind one drive's page: the published drive state, mount phase
+/// and options, and the display values and dashboard derived from them.
 /// </summary>
-public sealed class DriveSlot : INotifyPropertyChanged
+public sealed class DriveViewModel : INotifyPropertyChanged
 {
     private DriveState _state = null!;
     /// <summary>The drive's latest published state, from <see cref="TapeMonitor"/>.</summary>
@@ -219,8 +69,8 @@ public sealed class DriveSlot : INotifyPropertyChanged
         _ => "Eject",
     };
 
-    private SlotPhase _phase = SlotPhase.Idle;
-    public SlotPhase Phase
+    private MountPhase _phase = MountPhase.Idle;
+    public MountPhase Phase
     {
         get => _phase;
         set { _phase = value; RebuildDashboard(); Changed(); }
@@ -238,9 +88,9 @@ public sealed class DriveSlot : INotifyPropertyChanged
     /// <summary>Muted drive-status line under the drive name (the cartridge has its own section).</summary>
     public string StatusText => _mediaOpRunning ? EjectLoadText : _phase switch
     {
-        SlotPhase.Mounting => $"Mounting at {Mapping?.Letter}...",
-        SlotPhase.Mounted => $"Mounted at {Mapping?.Letter}" + (Mapping?.Options.ReadOnly == true ? ", read-only" : ""),
-        SlotPhase.Unmounting => "Unmounting...",
+        MountPhase.Mounting => $"Mounting at {Mapping?.Letter}...",
+        MountPhase.Mounted => $"Mounted at {Mapping?.Letter}" + (Mapping?.Options.ReadOnly == true ? ", read-only" : ""),
+        MountPhase.Unmounting => "Unmounting...",
         _ => LastCart?.State switch
         {
             CartridgeState.NoMedia => "Ready, no cartridge",
@@ -283,21 +133,21 @@ public sealed class DriveSlot : INotifyPropertyChanged
 
     // ---- derived UI state --------------------------------------------------
 
-    public bool OptionsEnabled => _phase == SlotPhase.Idle && _globalEnabled && !_mediaOpRunning;
+    public bool OptionsEnabled => _phase == MountPhase.Idle && _globalEnabled && !_mediaOpRunning;
 
     public bool ButtonEnabled => _globalEnabled && !_mediaOpRunning && _phase switch
     {
-        SlotPhase.Idle => CanMount,
-        SlotPhase.Mounting => true,    // acts as Cancel
-        SlotPhase.Mounted => true,
+        MountPhase.Idle => CanMount,
+        MountPhase.Mounting => true,    // acts as Cancel
+        MountPhase.Mounted => true,
         _ => false,
     };
 
     public string ButtonText => _phase switch
     {
-        SlotPhase.Idle => "Mount",
-        SlotPhase.Mounting => "Mounting",
-        SlotPhase.Mounted => "Unmount",
+        MountPhase.Idle => "Mount",
+        MountPhase.Mounting => "Mounting",
+        MountPhase.Mounted => "Unmount",
         _ => "Unmounting...",
     };
 
@@ -305,19 +155,19 @@ public sealed class DriveSlot : INotifyPropertyChanged
     /// Cancel (mounting) is a neutral/grey button; Mount and Unmount use the
     /// accent (blue) style. A null Style falls back to the implicit default.
     /// </summary>
-    public Style? ButtonStyle => _phase == SlotPhase.Mounting
+    public Style? ButtonStyle => _phase == MountPhase.Mounting
         ? null
         : (Style)Application.Current.Resources["AccentButtonStyle"];
 
-    public bool IsBusy => _phase is SlotPhase.Mounting or SlotPhase.Unmounting;
+    public bool IsBusy => _phase is MountPhase.Mounting or MountPhase.Unmounting;
     public Visibility SpinnerVisibility => IsBusy ? Visibility.Visible : Visibility.Collapsed;
 
-    // ---- dashboard ---------------------------------------------------------
+    // ---- dashboard: display data derived from the drive's state ------------
 
     private long _capacity, _free;   // bytes
     private string? _sig;
 
-    public bool HasCartridge => _phase != SlotPhase.Idle ||
+    public bool HasCartridge => _phase != MountPhase.Idle ||
                                 LastCart?.State is CartridgeState.Ltfs or CartridgeState.NotLtfs;
     public bool NoCartridge => !HasCartridge;
     public bool HasUsage => _capacity > 0;
@@ -329,7 +179,7 @@ public sealed class DriveSlot : INotifyPropertyChanged
     public string UsedText => SchemaSnapshot.FormatSize(_capacity - _free);
     public string FreeText => SchemaSnapshot.FormatSize(_free);
     public string CapacityText => SchemaSnapshot.FormatSize(_capacity);
-    public string UsageSource => _phase == SlotPhase.Mounted && _state.Usage != null
+    public string UsageSource => _phase == MountPhase.Mounted && _state.Usage != null
         ? "Live, from the mounted volume" : "From the cartridge memory (all partitions)";
 
     public Stat? NameStat { get; private set; }           // full-width tile
@@ -372,7 +222,7 @@ public sealed class DriveSlot : INotifyPropertyChanged
             .ToList();
 
         // capacity: live from a mounted volume, else the per-partition MAM figures
-        (_capacity, _free) = _phase == SlotPhase.Mounted && _state.Usage is { } live ? live : (0, 0);
+        (_capacity, _free) = _phase == MountPhase.Mounted && _state.Usage is { } live ? live : (0, 0);
         if (_capacity == 0)
             (_capacity, _free) = (parts.Sum(p => p.Cap), parts.Sum(p => p.Rem));
 

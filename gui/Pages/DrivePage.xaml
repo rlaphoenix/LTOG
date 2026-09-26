@@ -1,0 +1,342 @@
+<UserControl
+    x:Class="LTOG.Gui.DrivePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:LTOG.Gui">
+
+    <UserControl.Resources>
+        <Style x:Key="DashSection" TargetType="StackPanel">
+            <Setter Property="Orientation" Value="Horizontal" />
+            <Setter Property="Spacing" Value="10" />
+        </Style>
+        <Style x:Key="DashLabel" TargetType="TextBlock"
+               BasedOn="{StaticResource CaptionTextBlockStyle}">
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <!-- headline figure (Type, Name, Firmware, ...) -->
+        <DataTemplate x:Key="StatTile" x:DataType="local:Stat">
+            <Border Style="{StaticResource Card}" Padding="16,12"
+                    ToolTipService.ToolTip="{x:Bind Value}">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="{x:Bind Label}" Style="{StaticResource DashLabel}" />
+                    <TextBlock Text="{x:Bind Value}" Style="{StaticResource SubtitleTextBlockStyle}"
+                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                               IsTextSelectionEnabled="True" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- detail cell inside a group -->
+        <DataTemplate x:Key="StatCell" x:DataType="local:Stat">
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="6" Padding="12,8"
+                    ToolTipService.ToolTip="{x:Bind Value}">
+                <StackPanel>
+                    <TextBlock Text="{x:Bind Label}" Style="{StaticResource DashLabel}" />
+                    <TextBlock Text="{x:Bind Value}" TextTrimming="CharacterEllipsis"
+                               IsTextSelectionEnabled="True" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="StatGroupTemplate" x:DataType="local:StatGroup">
+            <StackPanel Spacing="8" Margin="0,4,0,12">
+                <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="2,0" />
+                <ItemsRepeater ItemsSource="{x:Bind Items}" ItemTemplate="{StaticResource StatCell}">
+                    <ItemsRepeater.Layout>
+                        <UniformGridLayout MinItemWidth="210" MinColumnSpacing="8" MinRowSpacing="8"
+                                           ItemsStretch="Fill" MaximumRowsOrColumns="{x:Bind MaxColumns}" />
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
+                <ItemsRepeater ItemsSource="{x:Bind TailItems}" ItemTemplate="{StaticResource StatCell}">
+                    <ItemsRepeater.Layout>
+                        <UniformGridLayout MinItemWidth="100" MinColumnSpacing="8" MinRowSpacing="8"
+                                           ItemsStretch="Fill" MaximumRowsOrColumns="4" />
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <!-- fixed header, edge-to-edge divider below; the details scroll on their own.
+             First in XAML so initial focus lands here, not on the bottom buttons -->
+        <Border Height="72" Padding="24,0"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="{x:Bind ViewModel.HeaderTitle}" IsTextSelectionEnabled="True"
+                                   Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <Border CornerRadius="10" Padding="8,1" VerticalAlignment="Center"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}">
+                            <TextBlock Text="{x:Bind ViewModel.Drive.GenerationText}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <CheckBox Grid.Column="1" Content="Read-only" MinWidth="0" VerticalAlignment="Center"
+                          IsChecked="{x:Bind ViewModel.ReadOnlyChecked, Mode=OneWay}"
+                          IsEnabled="{x:Bind ViewModel.OptionsEnabled, Mode=OneWay}"
+                          Click="ReadOnly_Click" />
+                <ComboBox Grid.Column="2" VerticalAlignment="Center"
+                          ItemsSource="{x:Bind ViewModel.Letters}"
+                          SelectedIndex="{x:Bind ViewModel.SelectedLetterIndex, Mode=TwoWay}"
+                          IsEnabled="{x:Bind ViewModel.OptionsEnabled, Mode=OneWay}" />
+                <Button Grid.Column="3" VerticalAlignment="Center"
+                        Style="{x:Bind ViewModel.ButtonStyle, Mode=OneWay}"
+                        IsEnabled="{x:Bind ViewModel.ButtonEnabled, Mode=OneWay}"
+                        Click="MountButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                                      Width="16" Height="16"
+                                      Visibility="{x:Bind ViewModel.SpinnerVisibility, Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind ViewModel.ButtonText, Mode=OneWay}" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+        <!-- details: own scroll context below the header -->
+        <ScrollViewer Grid.Row="1" VerticalAnchorRatio="NaN">
+            <!-- same 960px centred container as the other pages (+24px gutters) -->
+            <StackPanel Padding="24,16,24,24" Spacing="12" MaxWidth="1008">
+                <!-- ============ Cartridge ============ -->
+                <Expander IsExpanded="True"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <Expander.Header>
+                        <StackPanel Style="{StaticResource DashSection}">
+                            <FontIcon Glyph="&#xE96A;" FontSize="20" VerticalAlignment="Center" />
+                            <TextBlock Text="Cartridge" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        </StackPanel>
+                    </Expander.Header>
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="{x:Bind ViewModel.CartridgeText, Mode=OneWay}" Opacity="0.6" Margin="2,0"
+                                   Visibility="{x:Bind ViewModel.NoCartridge, Mode=OneWay}" />
+
+                        <StackPanel Spacing="12" Visibility="{x:Bind ViewModel.HasCartridge, Mode=OneWay}">
+                            <ContentPresenter Content="{x:Bind ViewModel.NameStat, Mode=OneWay}"
+                                              ContentTemplate="{StaticResource StatTile}"
+                                              HorizontalContentAlignment="Stretch" />
+                            <Border Style="{StaticResource Card}" Padding="20,16"
+                                    Visibility="{x:Bind ViewModel.HasUsage, Mode=OneWay}"
+                                    ToolTipService.ToolTip="{x:Bind ViewModel.UsageSource, Mode=OneWay}">
+                                <Grid RowSpacing="12" ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Capacity" Style="{StaticResource DashLabel}" />
+                                        <TextBlock Text="{x:Bind ViewModel.CapacityText, Mode=OneWay}" IsTextSelectionEnabled="True"
+                                                   Style="{StaticResource TitleTextBlockStyle}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="Free" Style="{StaticResource DashLabel}" />
+                                        <TextBlock Text="{x:Bind ViewModel.FreeText, Mode=OneWay}" IsTextSelectionEnabled="True"
+                                                   Style="{StaticResource TitleTextBlockStyle}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Used" Style="{StaticResource DashLabel}" />
+                                        <TextBlock Text="{x:Bind ViewModel.UsedText, Mode=OneWay}" IsTextSelectionEnabled="True"
+                                                   Style="{StaticResource TitleTextBlockStyle}" />
+                                    </StackPanel>
+                                    <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <ProgressBar Value="{x:Bind ViewModel.UsagePercent, Mode=OneWay}"
+                                                     ShowError="{x:Bind ViewModel.UsageCritical, Mode=OneWay}"
+                                                     VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.UsageText, Mode=OneWay}"
+                                                   Foreground="{x:Bind ViewModel.UsageBrush, Mode=OneWay}"
+                                                   Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.CartridgeStats, Mode=OneWay}"
+                                           ItemTemplate="{StaticResource StatTile}">
+                                <ItemsRepeater.Layout>
+                                    <UniformGridLayout MinItemWidth="180" MinColumnSpacing="12" MinRowSpacing="12"
+                                                       ItemsStretch="Fill" />
+                                </ItemsRepeater.Layout>
+                            </ItemsRepeater>
+                            <!-- manufacturer + date: half the width each -->
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Content="{x:Bind ViewModel.ManufacturerStat, Mode=OneWay}"
+                                                  ContentTemplate="{StaticResource StatTile}"
+                                                  HorizontalContentAlignment="Stretch" />
+                                <ContentPresenter Grid.Column="1" Content="{x:Bind ViewModel.ManufacturedStat, Mode=OneWay}"
+                                                  ContentTemplate="{StaticResource StatTile}"
+                                                  HorizontalContentAlignment="Stretch" />
+                            </Grid>
+                            <!-- ItemsControl, not ItemsRepeater: nested virtualizing repeaters cycle layout -->
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.CartridgeGroups, Mode=OneWay}"
+                                          ItemTemplate="{StaticResource StatGroupTemplate}" IsTabStop="False" />
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ============ Tape Drive ============ -->
+                <Expander IsExpanded="True"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <Expander.Header>
+                        <StackPanel Style="{StaticResource DashSection}">
+                            <FontIcon Glyph="&#xE967;" FontSize="20" VerticalAlignment="Center" />
+                            <TextBlock Text="Tape Drive" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        </StackPanel>
+                    </Expander.Header>
+                    <StackPanel Spacing="12">
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.DriveStats, Mode=OneWay}"
+                                       ItemTemplate="{StaticResource StatTile}">
+                            <ItemsRepeater.Layout>
+                                <UniformGridLayout MinItemWidth="180" MinColumnSpacing="12" MinRowSpacing="12"
+                                                   ItemsStretch="Fill" />
+                            </ItemsRepeater.Layout>
+                        </ItemsRepeater>
+                        <!-- serial + firmware: half the width each -->
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.DriveIdStats, Mode=OneWay}"
+                                       ItemTemplate="{StaticResource StatTile}">
+                            <ItemsRepeater.Layout>
+                                <UniformGridLayout MinColumnSpacing="12" MinRowSpacing="12"
+                                                   MaximumRowsOrColumns="2" ItemsStretch="Fill" />
+                            </ItemsRepeater.Layout>
+                        </ItemsRepeater>
+                        <!-- ItemsControl, not ItemsRepeater: nested virtualizing repeaters cycle layout -->
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.DriveGroups, Mode=OneWay}"
+                                      ItemTemplate="{StaticResource StatGroupTemplate}" IsTabStop="False" />
+                    </StackPanel>
+                </Expander>
+
+                <!-- ============ Raw attributes ============ -->
+                <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                          Visibility="{x:Bind ViewModel.HasMamAttributes, Mode=OneWay}">
+                    <Expander.Header>
+                        <StackPanel Style="{StaticResource DashSection}">
+                            <FontIcon Glyph="&#xE943;" FontSize="20" VerticalAlignment="Center" />
+                            <TextBlock Text="All raw attributes" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        </StackPanel>
+                    </Expander.Header>
+                    <!-- table: header + rows share fixed/star columns so they line up.
+                         ListView for multi-row selection (Shift/Ctrl, Ctrl+A); Ctrl+C / right-click
+                         copies rows as tab-separated text with the header line -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Select rows with Shift or Ctrl, then Ctrl+C or right-click to copy (includes the header)."
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <ListView ItemsSource="{x:Bind ViewModel.MamAttributes, Mode=OneWay}" SelectionMode="Extended"
+                                  ScrollViewer.VerticalScrollMode="Disabled">
+                            <ListView.KeyboardAccelerators>
+                                <KeyboardAccelerator Modifiers="Control" Key="C" Invoked="MamCopy_Invoked" />
+                            </ListView.KeyboardAccelerators>
+                            <ListView.ContextFlyout>
+                                <MenuFlyout Opening="MamMenu_Opening">
+                                    <MenuFlyoutItem Text="Copy selected" KeyboardAcceleratorTextOverride="Ctrl+C"
+                                                    Click="MamCopySelected_Click" />
+                                    <MenuFlyoutItem Text="Copy all" Click="MamCopyAll_Click" />
+                                </MenuFlyout>
+                            </ListView.ContextFlyout>
+                            <ListView.Header>
+                                <Grid ColumnSpacing="12" Padding="16,6"
+                                      Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                      BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="2*" />
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="64" />
+                                        <ColumnDefinition Width="3*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="ID" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Attribute" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Partition" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Size" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Value" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+                                </Grid>
+                            </ListView.Header>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                    <Setter Property="MinHeight" Value="30" />
+                                    <Setter Property="Padding" Value="12,0" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="local:MamRow">
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="2*" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="64" />
+                                            <ColumnDefinition Width="3*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind Id}" FontFamily="Consolas" FontSize="12" />
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="12"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}" />
+                                        <TextBlock Grid.Column="2" Text="{x:Bind Partition}" FontSize="12" />
+                                        <TextBlock Grid.Column="3" Text="{x:Bind Size}" FontSize="12" />
+                                        <TextBlock Grid.Column="4" Text="{x:Bind Value}" FontFamily="Consolas" FontSize="12"
+                                                   TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Hex}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </StackPanel>
+                </Expander>
+
+                <!-- ============ Controls ============ -->
+                <Grid ColumnSpacing="8" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Content="Format" HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.OptionsEnabled, Mode=OneWay}"
+                            Click="Format_Click" />
+                    <Button Grid.Column="1" Content="Unformat" HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.OptionsEnabled, Mode=OneWay}"
+                            Click="Unformat_Click" />
+                    <Button Grid.Column="2" Content="Check" HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.OptionsEnabled, Mode=OneWay}"
+                            Click="Check_Click" />
+                    <Button Grid.Column="3" Content="{x:Bind ViewModel.EjectLoadText, Mode=OneWay}"
+                            HorizontalAlignment="Stretch"
+                            IsEnabled="{x:Bind ViewModel.OptionsEnabled, Mode=OneWay}"
+                            Click="EjectLoad_Click" />
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
+
+    </Grid>
+</UserControl>
