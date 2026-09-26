@@ -76,6 +76,7 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
             vm.Phase = MountPhase.Mounted;
             vm.SetMountedLetter(letter);
             PersistMapping(mapping);
+            WatchForExit(vm, mapping);
         }
         catch (Exception ex)
         {
@@ -102,15 +103,36 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
             if (!unmounted) vm.Phase = phaseBefore;
         }
         if (!unmounted) return;
-        _monitor.SetMount(mapping.Device, null);
+        Release(vm, mapping);
+        if (wasMounting) log.Note($"[{mapping.Letter}] mount cancelled");
+    }
 
+    /// <summary>The mount is gone (ltfs.exe exited): free its letter, saved entry and monitor state.</summary>
+    private void Release(DriveViewModel vm, Mapping mapping)
+    {
+        _monitor.SetMount(mapping.Device, null);
         settings.Mappings.RemoveAll(p => p.Letter == mapping.Letter);
         settings.Save();
         settings.ApplyRunKey();
         vm.Mapping = null;
         vm.Phase = MountPhase.Idle;
         vm.SetLetters(_monitor.FreeLetters, prefer: mapping.Letter);
-        if (wasMounting) log.Note($"[{mapping.Letter}] mount cancelled");
+    }
+
+    /// <summary>
+    /// Release a mount whose ltfs.exe exits on its own (crash, ended in Task Manager, ...).
+    /// An exit during Unmount is left to <see cref="UnmountAsync"/>.
+    /// </summary>
+    private async void WatchForExit(DriveViewModel vm, Mapping mapping)
+    {
+        var p = mapping.Proc!;
+        try { await p.WaitForExitAsync(); }
+        catch { return; }   // can't be waited on: Unmount still tidies up
+        if (vm.Mapping != mapping || vm.Phase == MountPhase.Unmounting) return;
+        string code;
+        try { code = $"exit {p.ExitCode}"; } catch { code = "exit code unknown"; }
+        log.Note($"{mapping.Letter}: ltfs.exe exited unexpectedly ({code}), the volume is no longer mounted.", isError: true);
+        Release(vm, mapping);
     }
 
     private void PersistMapping(Mapping m)
@@ -154,6 +176,7 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
             vm.SetMountedLetter(p.Letter);
             vm.Phase = MountPhase.Mounted;
             _monitor.SetMount(p.Device, p.Letter);
+            WatchForExit(vm, mapping);
             log.Note($"Adopted existing mount on {p.Letter} ({p.Device}, pid {pid}) from a previous session.");
             return;
         }
