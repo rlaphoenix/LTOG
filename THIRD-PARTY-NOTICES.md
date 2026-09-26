@@ -105,7 +105,7 @@ installer and run to install the signed kernel driver)
 
 ## GUI runtime — Microsoft components
 
-The GUI (`dist/gui/`) is a self-contained Windows App SDK / WinUI 3 build. The
+The GUI (`dist/`) is a self-contained Windows App SDK / WinUI 3 build. The
 following Microsoft runtime files are redistributed as part of the application,
 under the **Microsoft Software License Terms** that accompany each package
 (redistribution with an application is permitted by those terms):

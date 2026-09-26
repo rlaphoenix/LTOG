@@ -56,7 +56,7 @@ $Root         = $PSScriptRoot
 $Dist         = Join-Path $Root 'dist'
 $DistWinLtfs  = Join-Path $Dist 'winltfs'   # native engine lives in a subfolder
 $DistLicenses = Join-Path $Dist 'licenses'
-$GuiDir       = Join-Path $Root 'gui'
+$GuiDir       = Join-Path $Root 'src'
 $InstallerDir = Join-Path $Root 'installer'
 $GuiOutSub    = 'bin\x64\Release\net8.0-windows10.0.19041.0\win-x64'   # self-contained output
 
@@ -140,7 +140,7 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
 $assemblyVersion = if (($Version.Split('.')).Count -eq 3) { "$Version.0" } else { $Version }
 Push-Location $GuiDir
 try {
-    & dotnet build 'LTOG.Gui.csproj' -c Release -p:Platform=x64 `
+    & dotnet build 'LTOG.csproj' -c Release -p:Platform=x64 `
         -p:Version=$Version -p:AssemblyVersion=$assemblyVersion -p:FileVersion=$assemblyVersion `
         --nologo
     if ($LASTEXITCODE -ne 0) { throw "dotnet build failed (exit $LASTEXITCODE)." }

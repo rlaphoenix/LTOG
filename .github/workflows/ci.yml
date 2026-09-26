@@ -24,9 +24,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~\.nuget\packages
-          key: nuget-${{ hashFiles('gui/LTOG.Gui.csproj') }}
+          key: nuget-${{ hashFiles('src/LTOG.csproj') }}
           restore-keys: nuget-
 
       - name: Build GUI
-        working-directory: gui
-        run: dotnet build LTOG.Gui.csproj -c Release -p:Platform=x64 --nologo
+        working-directory: src
+        run: dotnet build LTOG.csproj -c Release -p:Platform=x64 --nologo

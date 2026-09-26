@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>LTOG</RootNamespace>
+    <AssemblyName>LTOG</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- Self-contained: bundle the .NET runtime so the app needs no separately
+         installed .NET. Combined with WindowsAppSDKSelfContained, the only
+         external runtime requirement is the OS itself (Win10 1809+ UCRT). -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.*" />
+    <PackageReference Include="System.Management" Version="8.0.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- expose the exact WinAppSDK package version to the About page -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>WindowsAppSDKVersion</_Parameter1>
+      <_Parameter2>@(PackageReference->WithMetadataValue('Identity','Microsoft.WindowsAppSDK')->'%(Version)')</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\icon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Oxanium.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!--
+    Trim ~159 MB of output that LTOG never uses, leaving a much smaller install:
+      * runtimes\ - native libs for arm64/arm64ec/x86 (this build is x64-only)
+        plus a byte-for-byte duplicate of the x64 natives that already sit loose
+        next to LTOG.exe (the loose copies are what a self-contained app loads).
+      * the Windows App SDK AI/ML inference stack (ONNX Runtime ~21 MB, DirectML
+        ~19 MB, WinML, NPU/streaming helpers) - LTOG calls no AI APIs.
+    Runs after Build (the output the README robocopies into dist\gui). Verified by
+    launching the app: the main window still opens normally without these.
+  -->
+  <Target Name="TrimUnusedSelfContainedAssets" AfterTargets="Build"
+          Condition="'$(SelfContained)' == 'true'">
+    <ItemGroup>
+      <_LtogTrimFiles Include="$(OutDir)onnxruntime.dll" />
+      <_LtogTrimFiles Include="$(OutDir)DirectML.dll" />
+      <_LtogTrimFiles Include="$(OutDir)Microsoft.ML.OnnxRuntime.dll" />
+      <_LtogTrimFiles Include="$(OutDir)NPUDetect.dll" />
+      <_LtogTrimFiles Include="$(OutDir)PerceptiveStreaming.dll" />
+      <_LtogTrimFiles Include="$(OutDir)Microsoft.Windows.AI.MachineLearning.dll" />
+      <_LtogTrimFiles Include="$(OutDir)Microsoft.Windows.AI.MachineLearning.Projection.dll" />
+    </ItemGroup>
+    <Delete Files="@(_LtogTrimFiles)" />
+    <RemoveDir Directories="$(OutDir)runtimes" />
+  </Target>
+</Project>

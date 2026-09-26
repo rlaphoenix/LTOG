@@ -1,0 +1,149 @@
+<UserControl
+    x:Class="LTOG.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:LTOG">
+
+    <ScrollViewer Padding="16,0">
+        <StackPanel Spacing="12" MaxWidth="960" Margin="0,12">
+            <StackPanel>
+                <TextBlock Text="Mounting" Style="{StaticResource SectionHeader}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel Spacing="8">
+                        <CheckBox x:Name="EjectAfterUnmountCheck"
+                                  Content="Eject cartridge after unmount"
+                                  Click="SettingChanged" />
+                        <CheckBox x:Name="RemountCheck"
+                                  Content="Remount at system start-up"
+                                  Click="SettingChanged" />
+                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"
+                                   Text="Applies to every tape drive. Start-up remount restores each drive that was mounted when LTOG last ran, on the same letter." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel>
+                <TextBlock Text="Index capture" Style="{StaticResource SectionHeader}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel Spacing="10">
+                        <CheckBox x:Name="CaptureIndexCheck"
+                                  Content="Capture snapshot of index at mount/unmount time"
+                                  IsChecked="True" Click="SettingChanged" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Working folder" VerticalAlignment="Center" />
+                            <TextBox x:Name="WorkFolderBox" Grid.Column="1" Text="C:\tmp\ltfs"
+                                     LostFocus="SettingChanged" />
+                        </Grid>
+                        <TextBlock IsTextSelectionEnabled="True" Text="Snapshots are plain LTFS index XML — off-tape backups of the volume's metadata. Browse them on the Indexes page."
+                                   FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel>
+                <TextBlock Text="Index updates" Style="{StaticResource SectionHeader}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel Spacing="8">
+                        <CheckBox x:Name="OverridePolicyCheck"
+                                  Content="Override default index update policy"
+                                  Click="SettingChanged" />
+                        <RadioButton x:Name="PolicyDismountRadio" GroupName="SyncPolicy"
+                                     Content="when volume is dismounted" Margin="24,0,0,0"
+                                     IsEnabled="False" Click="SettingChanged" />
+                        <RadioButton x:Name="PolicyPeriodicRadio" GroupName="SyncPolicy"
+                                     IsChecked="True" Margin="24,0,0,0"
+                                     IsEnabled="False" Click="SettingChanged">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="periodically, every" VerticalAlignment="Center" />
+                                <NumberBox x:Name="PeriodBox" Minimum="1" Maximum="1440"
+                                           SmallChange="1" SpinButtonPlacementMode="Compact"
+                                           ValueChanged="Period_ValueChanged" />
+                                <TextBlock Text="minutes" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True" Text="Default policy: the index is written to tape every time a modified file is closed (sync_type=close)." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel>
+                <TextBlock Text="Advanced mount options" Style="{StaticResource SectionHeader}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel Spacing="12">
+                        <StackPanel Spacing="4">
+                            <CheckBox x:Name="AppendOnlyCheck"
+                                      Content="Append-only mode (LTO-7 and newer)"
+                                      Click="SettingChanged" />
+                            <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True"
+                                       Text="Stops data already on the tape being overwritten or erased — files can be added but not changed or removed. Only supported on LTO-7 and newer drives." />
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <CheckBox x:Name="OverrideIndexCheck"
+                                      Content="Request mount-time override of formatted configuration"
+                                      Click="SettingChanged" />
+                            <StackPanel Margin="28,0,0,0" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Files may be placed in the index partition if size &#8804;"
+                                               VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    <NumberBox x:Name="IndexSizeBox" Minimum="1" Maximum="999999"
+                                               SmallChange="1" SpinButtonPlacementMode="Compact" Width="120"
+                                               ValueChanged="IndexSize_ValueChanged" />
+                                    <ComboBox x:Name="IndexUnitCombo" VerticalAlignment="Center"
+                                              SelectionChanged="SettingChanged">
+                                        <ComboBoxItem Content="KB" />
+                                        <ComboBoxItem Content="MB" />
+                                        <ComboBoxItem Content="GB" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="File name pattern(s)" />
+                                    <TextBox x:Name="IndexNameBox" PlaceholderText="*.jpg:*.gif"
+                                             LostFocus="SettingChanged" />
+                                    <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                               IsTextSelectionEnabled="True"
+                                               Text="Filename pattern(s) to consider writing to index partition, colon-separated list e.g. *.jpg:*.gif" />
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True"
+                                       Text="Keeps small, frequently-used files in the fast index partition for quicker access. Only applies if the cartridge was formatted to permit it (mkltfs without --no-override)." />
+                        </StackPanel>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Support ticket folder" />
+                            <TextBox x:Name="LogDirBox"
+                                     PlaceholderText="C:\ProgramData\LTOG"
+                                     LostFocus="SettingChanged" />
+                            <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True"
+                                       Text="Folder where LTFS should store all support tickets generated" />
+                        </StackPanel>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Logging verbosity" VerticalAlignment="Center" />
+                            <ComboBox x:Name="VerbosityCombo" Grid.Column="1"
+                                      HorizontalAlignment="Stretch"
+                                      SelectionChanged="SettingChanged">
+                                <ComboBoxItem Content="Normal" />
+                                <ComboBoxItem Content="Verbose (trace)" />
+                                <ComboBoxItem Content="Full trace (slow)" />
+                            </ComboBox>
+                        </Grid>
+                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"
+                                   Text="These apply to new mounts. Higher verbosity noticeably slows the volume and is only for diagnosing problems." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

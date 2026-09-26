@@ -39,7 +39,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~\.nuget\packages
-          key: nuget-${{ hashFiles('gui/LTOG.Gui.csproj') }}
+          key: nuget-${{ hashFiles('src/LTOG.csproj') }}
           restore-keys: nuget-
 
       - name: Build installer

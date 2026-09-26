@@ -1,4 +1,4 @@
-<h1 align="center"><img src="gui/Assets/icon.png" alt="" width="24" /> LTOG</h1>
+<h1 align="center"><img src="src/Assets/icon.png" alt="" width="24" /> LTOG</h1>
 
 <p align="center">
   <a href="https://github.com/rlaphoenix/LTOG/blob/main/LICENSE">
@@ -83,8 +83,8 @@ winget install -e Microsoft.DotNet.SDK.8
 In PowerShell:
 
 ```powershell
-cd gui  # enter gui folder
-dotnet build LTOG.Gui.csproj -c Release -p:Platform=x64  # build (self-contained)
+cd src  # enter the source folder
+dotnet build LTOG.csproj -c Release -p:Platform=x64  # build (self-contained)
 robocopy "bin\x64\Release\net8.0-windows10.0.19041.0\win-x64" "..\dist" /E  # self-contained output -> ..\dist
 ```
 
