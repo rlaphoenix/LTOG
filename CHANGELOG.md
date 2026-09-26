@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- While a cartridge is mounted, its MAM attributes are now refreshed every 30 seconds
+  through the WinLtfs engine (raw MAM IOCTL on the volume) instead of showing
+  the snapshot taken before mounting. The tape device is never opened directly
+  while mounted.
+
 ## [1.1.0] - 2026-09-22
 
 ### Added

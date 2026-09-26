@@ -200,6 +200,8 @@ public sealed class DriveSlot : INotifyPropertyChanged
         }
     }
 
+    public DateTime MountedMamReadAt { get; set; }  // last MAM read through the mounted volume
+
     public bool MediaAbsent => _lastCart?.State == CartridgeState.NoMedia;
 
     private bool _mediaOpRunning;   // eject/load in progress

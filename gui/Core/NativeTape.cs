@@ -353,6 +353,108 @@ public static class NativeTape
         mam.TryGetValue(id, out var v) && System.Text.Encoding.UTF8.GetString(v).Trim('\0', ' ') is { Length: > 0 } t
             ? t : null;
 
+    // ------------------------------------------------- MAM via a mounted volume
+
+    // WinLtfs 1.2.0+ raw MAM command 0x83B on the volume root: the engine reads the
+    // MAM over its own device handle, so a mounted drive's \\.\TAPEn is never opened.
+    private const uint FILE_READ_EA = 0x0008;
+    private const uint FILE_SHARE_DELETE = 4;
+    private const uint FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
+    private const uint WINLTFS_IOCTL_RAW_MAM = 0xC657u << 16 | 0x83Bu << 2;
+    private const uint WINLTFS_REPLY_MAGIC = 0x4C6E6957;   // "WinL"
+
+    /// <summary>
+    /// One raw MAM query (op 1 = list ids, 0 = read one attribute), all pages joined.
+    /// Null when the engine reports a status (e.g. attribute or partition absent).
+    /// Throws if the engine can't answer or the volume changed between replies.
+    /// </summary>
+    private static byte[]? VolumeMam(SafeFileHandle h, byte op, byte partition, ushort id, ref string? uuid)
+    {
+        var buf = new byte[4096];   // request and reply share one METHOD_BUFFERED buffer
+        byte[]? result = null;
+        for (int offset = 0; ;)
+        {
+            Array.Clear(buf);
+            BitConverter.TryWriteBytes(buf.AsSpan(0), 1u);           // request version
+            buf[4] = op;
+            buf[5] = partition;
+            BitConverter.TryWriteBytes(buf.AsSpan(6), id);
+            BitConverter.TryWriteBytes(buf.AsSpan(8), offset);
+            if (!DeviceIoControl(h, WINLTFS_IOCTL_RAW_MAM, buf, buf.Length, buf, buf.Length, out _, IntPtr.Zero)
+                || BitConverter.ToUInt32(buf, 0) != WINLTFS_REPLY_MAGIC)
+                throw new IOException($"WinLtfs raw MAM query failed (win32 error {Marshal.GetLastWin32Error()})");
+            string replyUuid = System.Text.Encoding.ASCII.GetString(buf, 16, 36);
+            if ((uuid ??= replyUuid) != replyUuid)
+                throw new IOException("Volume changed while reading the MAM");
+            if (BitConverter.ToInt32(buf, 8) != 0)
+                return null;
+            int len = BitConverter.ToInt32(buf, 12), total = BitConverter.ToInt32(buf, 56);
+            result ??= new byte[total];
+            buf.AsSpan(64, len).CopyTo(result.AsSpan(offset));
+            offset += len;
+            if (offset >= total || len == 0)
+                return result;
+        }
+    }
+
+    /// <summary>
+    /// Every MAM attribute of every partition of the cartridge mounted at
+    /// <paramref name="letter"/> ("T:"), read through the WinLtfs engine.
+    /// </summary>
+    public static List<IReadOnlyDictionary<ushort, byte[]>> ReadVolumeMam(string letter)
+    {
+        using var h = CreateFile($@"{letter}\", FILE_READ_EA,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, IntPtr.Zero, OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS, IntPtr.Zero);
+        if (h.IsInvalid)
+            throw new IOException($"Cannot open {letter}\\ (win32 error {Marshal.GetLastWin32Error()})");
+
+        var mams = new List<IReadOnlyDictionary<ushort, byte[]>>();
+        string? uuid = null;
+        for (byte p = 0; p < 2; p++)   // WinLtfs: physical partition 0 or 1
+        {
+            if (VolumeMam(h, 1, p, 0, ref uuid) is not { } ids)
+                break;
+            var attrs = new Dictionary<ushort, byte[]>();
+            for (int i = 0; i + 2 <= ids.Length; i += 2)
+            {
+                ushort id = (ushort)(ids[i] << 8 | ids[i + 1]);
+                // reply: id(2) flags/format(1) len(2) value
+                if (VolumeMam(h, 0, p, id, ref uuid) is { Length: >= 5 } v)
+                    attrs[id] = v[5..];
+            }
+            if (attrs.Count > 0) mams.Add(attrs);
+        }
+        return mams;
+    }
+
+    /// <summary>
+    /// Refresh a mounted cartridge's MAM view through its volume; drive-side
+    /// values not available through the engine are kept from <paramref name="prev"/>.
+    /// Null when the volume returned no MAM.
+    /// </summary>
+    public static CartridgeInfo? ReadMountedCartridge(string letter, CartridgeInfo? prev, IActivityLog? log = null)
+    {
+        var mams = ReadVolumeMam(letter);
+        log?.Read($"Read cartridge — {letter}",
+            $@"WinLtfs raw MAM (DeviceIoControl 0x83B)  {letter}\",
+            new[] { $"{mams.Sum(m => m.Count)} MAM attributes across {mams.Count} partition(s)." },
+            key: $"cartridge:{letter}");
+        if (mams.Count == 0)
+            return null;
+        var mam = mams[0];
+        return (prev ?? new CartridgeInfo(CartridgeState.Ltfs, null, null)) with
+        {
+            State = CartridgeState.Ltfs,
+            VolumeName = MamText(mam, MAM_USR_MED_TXT_LABEL),
+            FormatVersion = MamText(mam, MAM_APP_FORMAT_VERSION),
+            LtoGeneration = prev?.LtoGeneration
+                ?? (MamNumber(mam, MAM_MEDIUM_DENSITY) is { } d ? LtoGenerationName((byte)d) : null),
+            MamByPartition = mams,
+            Position = null,   // moves while mounted; not readable through the engine
+        };
+    }
+
     private static DriveParams? ReadDriveParams(SafeFileHandle h)
     {
         var b = new byte[32];

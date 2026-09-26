@@ -546,8 +546,21 @@ public sealed partial class MainWindow : Window
             // off the UI thread: LTFS can hold statfs while it writes an index
             try { slot.LiveUsage = await Task.Run(() => { var di = new DriveInfo(m.Letter); return (di.TotalSize, di.TotalFreeSpace); }); }
             catch { slot.LiveUsage = null; }
+
+            if (DateTime.UtcNow - slot.MountedMamReadAt >= TimeSpan.FromSeconds(30))
+            {
+                slot.MountedMamReadAt = DateTime.UtcNow;
+                try
+                {
+                    var prev = slot.LastCart;
+                    if (await Task.Run(() => NativeTape.ReadMountedCartridge(m.Letter, prev, Activity)) is { } c)
+                        slot.LastCart = c;
+                }
+                catch { }
+            }
             return;
         }
+        slot.MountedMamReadAt = default;
 
         CartridgeInfo? cart = null;
         try { cart = await Task.Run(() => NativeTape.ReadCartridgeInfo(slot.Drive.Device, Activity)); }
