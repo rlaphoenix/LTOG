@@ -46,7 +46,7 @@ param(
     [switch]$SkipNative,
     [switch]$NoInstaller,
     [ValidatePattern('^\d+\.\d+\.\d+(\.\d+)?$')]
-    [string]$Version = '1.1.0'
+    [string]$Version = '2.0.0'
 )
 
 Set-StrictMode -Version Latest
