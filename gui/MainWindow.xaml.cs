@@ -472,9 +472,14 @@ public sealed partial class MainWindow : Window
         RebuildSlots();
     }
 
-    /// <summary>Auto-refresh (3s): re-enumerate and only touch the UI on change.</summary>
+    /// <summary>
+    /// Auto-refresh (3s): re-enumerate only when the set of tape devices changed,
+    /// so drives (mounted ones included) aren't opened just to be re-identified.
+    /// </summary>
     private void RefreshDrivesIfChanged()
     {
+        if (NativeTape.PresentDevices().SequenceEqual(_drives.Select(d => d.Device)))
+            return;
         List<TapeDrive> found;
         try { found = NativeTape.Enumerate(Activity); }
         catch { return; }
@@ -521,7 +526,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private async Task PollSlotsAsync()
     {
-        if (_polling) return;
+        if (_polling || _utilityRunning) return;   // never race a tool for the drive
         _polling = true;
         try
         {
@@ -536,6 +541,8 @@ public sealed partial class MainWindow : Window
 
     private async Task PollSlotCoreAsync(DriveSlot slot)
     {
+        if (slot.Phase != SlotPhase.Idle)
+            slot.ProbedStatus = uint.MaxValue;   // a mount rewrites the MAM: re-read once idle
         if (slot.Phase is SlotPhase.Mounting or SlotPhase.Unmounting)
             return;
 
@@ -561,6 +568,12 @@ public sealed partial class MainWindow : Window
             return;
         }
         slot.MountedMamReadAt = default;
+
+        // Full read (MODE SENSE, MAM, ...) only when the drive's state changed.
+        uint status = await Task.Run(() => NativeTape.ProbeStatus(slot.Drive.Device));
+        if (status == slot.ProbedStatus)
+            return;
+        slot.ProbedStatus = status;
 
         CartridgeInfo? cart = null;
         try { cart = await Task.Run(() => NativeTape.ReadCartridgeInfo(slot.Drive.Device, Activity)); }
@@ -941,6 +954,7 @@ public sealed partial class MainWindow : Window
         {
             _utilityRunning = false;
             UpdateGlobalEnabled();
+            foreach (var s in Slots) s.ProbedStatus = uint.MaxValue;   // tools rewrite the MAM
             await PollSlotsAsync();
         }
     }

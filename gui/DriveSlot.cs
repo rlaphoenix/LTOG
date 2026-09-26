@@ -201,6 +201,7 @@ public sealed class DriveSlot : INotifyPropertyChanged
     }
 
     public DateTime MountedMamReadAt { get; set; }  // last MAM read through the mounted volume
+    public uint ProbedStatus { get; set; } = uint.MaxValue;   // drive status at the last full read; MaxValue = re-read
 
     public bool MediaAbsent => _lastCart?.State == CartridgeState.NoMedia;
 

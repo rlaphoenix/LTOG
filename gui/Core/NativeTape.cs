@@ -110,6 +110,16 @@ public static class NativeTape
         CreateFile($@"\\.\{device}", 0,
             FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
 
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint QueryDosDevice(string name, char[]? target, int max);
+
+    /// <summary>
+    /// Which of TAPE0 .. TAPE9 exist, from the DOS device namespace: opens no handle.
+    /// </summary>
+    public static List<string> PresentDevices() =>
+        Enumerable.Range(0, 10).Select(i => $"TAPE{i}")
+            .Where(d => QueryDosDevice(d, new char[512], 512) != 0).ToList();
+
     /// <summary>Probe \\.\TAPE0 .. \\.\TAPE9 and read vendor/product/serial.</summary>
     public static List<TapeDrive> Enumerate(IActivityLog? log = null)
     {
@@ -538,6 +548,17 @@ public static class NativeTape
         0x60 => "LTO-9",
         _ => null,
     };
+
+    /// <summary>
+    /// Cheap drive state probe: GetTapeStatus (TEST UNIT READY, no motion), or the
+    /// open's win32 error when the drive can't be opened (e.g. in use).
+    /// tape.sys raises no media change events, so this is what gets polled.
+    /// </summary>
+    public static uint ProbeStatus(string device)
+    {
+        using var h = Open(device);
+        return h.IsInvalid ? (uint)Marshal.GetLastWin32Error() : GetTapeStatus(h);
+    }
 
     /// <summary>
     /// Identify the cartridge in a drive without mounting: media presence via
