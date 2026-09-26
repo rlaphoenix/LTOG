@@ -28,7 +28,10 @@ public static class MountManager
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GenerateConsoleCtrlEvent(uint ctrlEvent, uint processGroup);
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool SetConsoleCtrlHandler(IntPtr handler, bool add);
+    private static extern bool SetConsoleCtrlHandler(CtrlHandler handler, bool add);
+
+    private delegate bool CtrlHandler(uint ctrlType);
+    private static readonly CtrlHandler DetachOnCtrlC = _ => FreeConsole();
 
     /// <summary>
     /// Start ltfs.exe for a mapping, with the mount options from <paramref name="s"/>,
@@ -149,10 +152,9 @@ public static class MountManager
     private static bool SignalCtrlC(int pid)
     {
         if (!AttachConsole(pid)) return false;
-        SetConsoleCtrlHandler(IntPtr.Zero, true);    // don't kill ourselves
+        SetConsoleCtrlHandler(DetachOnCtrlC, true);   // only honoured once attached
         bool sent = GenerateConsoleCtrlEvent(0 /* CTRL_C_EVENT */, 0);
-        FreeConsole();
-        SetConsoleCtrlHandler(IntPtr.Zero, false);
+        if (!sent) FreeConsole();
         return sent;
     }
 
