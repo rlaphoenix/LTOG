@@ -218,8 +218,6 @@ public sealed class ActivityLog : IActivityLog, INotifyPropertyChanged
     public Visibility EmptyHint =>
         Entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-    /// <summary>Raised (on the UI thread) after any change — used for auto-scroll.</summary>
-    public event Action? Updated;
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ActivityLog(DispatcherQueue dispatcher)
@@ -302,11 +300,10 @@ public sealed class ActivityLog : IActivityLog, INotifyPropertyChanged
         Raise(nameof(EmptyHint));
     }
 
-    /// <summary>Run a mutation on the UI thread, then raise <see cref="Updated"/>.</summary>
+    /// <summary>Run a mutation on the UI thread.</summary>
     private void Post(Action a)
     {
-        void Run() { a(); Updated?.Invoke(); }
-        if (!_dq.TryEnqueue(Run)) Run();
+        if (!_dq.TryEnqueue(() => a())) a();
     }
 
     private void WriteFile(IEnumerable<string> lines)

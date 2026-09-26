@@ -10,15 +10,20 @@ public sealed partial class LogPage : UserControl
     public LogPage()
     {
         InitializeComponent();
-        // Auto-scroll to the newest entry as activity streams in.
-        Activity.Updated += () =>
-        {
-            if (AutoScrollCheck.IsChecked == true)
-                LogScroll.ChangeView(null, double.MaxValue, null, true);
-        };
     }
 
     public ActivityLog Activity => App.Activity;
+
+    /// <summary>
+    /// Auto-scroll: follow the bottom whenever the log grows. SizeChanged fires after
+    /// layout, so the new bottom is already known (scrolling straight after adding a
+    /// line would stop short of it).
+    /// </summary>
+    private void LogContent_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (AutoScrollCheck.IsChecked == true)
+            LogScroll.ChangeView(null, double.MaxValue, null, true);
+    }
 
     private void ClearLog_Click(object sender, RoutedEventArgs e) => App.Activity.Clear();
 

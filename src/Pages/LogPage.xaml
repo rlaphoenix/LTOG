@@ -34,7 +34,7 @@
 
         <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
             <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto" Padding="10">
-                <StackPanel>
+                <StackPanel SizeChanged="LogContent_SizeChanged">
                     <TextBlock x:Name="NoLogText" Text="No activity yet." Opacity="0.6" Margin="4"
                                Visibility="{x:Bind Activity.EmptyHint, Mode=OneWay}" />
                     <ItemsControl ItemsSource="{x:Bind Activity.Entries}">
