@@ -61,6 +61,11 @@
             </StackPanel>
             <TitleBar.RightHeader>
                 <SelectorBar x:Name="TitleButtons" SelectionChanged="Page_SelectionChanged">
+                    <SelectorBarItem Tag="kofi" ToolTipService.ToolTip="Support LTOG on Ko-fi" AutomationProperties.Name="Support on Ko-fi">
+                        <SelectorBarItem.Icon>
+                            <FontIcon Glyph="&#xEB51;" />
+                        </SelectorBarItem.Icon>
+                    </SelectorBarItem>
                     <SelectorBarItem Tag="about" ToolTipService.ToolTip="About" AutomationProperties.Name="About">
                         <SelectorBarItem.Icon>
                             <FontIcon Glyph="&#xE946;" />

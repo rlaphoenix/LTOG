@@ -160,6 +160,13 @@ public sealed partial class MainWindow : Window
     private void Page_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
         if (sender.SelectedItem is not { } item) return;   // cleared by the other bar
+        if ((string)item.Tag == "kofi")
+        {
+            _ = Windows.System.Launcher.LaunchUriAsync(new Uri("https://ko-fi.com/rlaphoenix"));
+            var prev = MainPages.Items.Concat(TitleButtons.Items).First(i => (string)i.Tag == _page);
+            (MainPages.Items.Contains(prev) ? MainPages : TitleButtons).SelectedItem = prev;
+            return;
+        }
         (sender == MainPages ? TitleButtons : MainPages).SelectedItem = null;
         // SelectorBarItem's selected+hover state falls back to the item's own Background, so
         // put the selected fill there too or it vanishes under the pointer
