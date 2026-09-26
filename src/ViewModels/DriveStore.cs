@@ -88,30 +88,29 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
         }
     }
 
-    /// <summary>Unmount, or cancel a mount that's still starting.</summary>
+    /// <summary>Unmount, or cancel a mount that's still starting. If ltfs.exe can't be signalled, the mount is kept.</summary>
     public async Task UnmountAsync(DriveViewModel vm)
     {
         if (vm.Mapping is not { } mapping) { vm.Phase = MountPhase.Idle; return; }
-        bool wasMounting = vm.Phase == MountPhase.Mounting;
+        var phaseBefore = vm.Phase;
+        bool wasMounting = phaseBefore == MountPhase.Mounting;
+        bool unmounted = false;
         vm.Phase = MountPhase.Unmounting;
-        try
-        {
-            await _monitor.ExclusiveAsync(mapping.Device, async () =>
-            {
-                try { await MountManager.UnmountAsync(mapping, log); }
-                finally { _monitor.SetMount(mapping.Device, null); }
-            });
-        }
+        try { unmounted = await MountManager.UnmountAsync(mapping, log); }
         finally
         {
-            settings.Mappings.RemoveAll(p => p.Letter == mapping.Letter);
-            settings.Save();
-            settings.ApplyRunKey();
-            vm.Mapping = null;
-            vm.Phase = MountPhase.Idle;
-            vm.SetLetters(_monitor.FreeLetters, prefer: mapping.Letter);
-            if (wasMounting) log.Note($"[{mapping.Letter}] mount cancelled");
+            if (!unmounted) vm.Phase = phaseBefore;
         }
+        if (!unmounted) return;
+        _monitor.SetMount(mapping.Device, null);
+
+        settings.Mappings.RemoveAll(p => p.Letter == mapping.Letter);
+        settings.Save();
+        settings.ApplyRunKey();
+        vm.Mapping = null;
+        vm.Phase = MountPhase.Idle;
+        vm.SetLetters(_monitor.FreeLetters, prefer: mapping.Letter);
+        if (wasMounting) log.Note($"[{mapping.Letter}] mount cancelled");
     }
 
     private void PersistMapping(Mapping m)

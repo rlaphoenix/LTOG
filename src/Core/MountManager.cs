@@ -123,29 +123,31 @@ public static class MountManager
 
     /// <summary>
     /// Graceful unmount: deliver Ctrl+C to ltfs.exe's hidden console so it writes
-    /// the final index and releases the drive. Never force-kills.
+    /// the final index and releases the drive. Never force-kills. Once the signal is
+    /// delivered ltfs.exe is committed to exiting, but only after any tape operation in
+    /// progress (a seek can take minutes), so this waits for it with no timeout.
+    /// False only when the signal couldn't be delivered: the mount is still up.
     /// </summary>
-    public static async Task UnmountAsync(Mapping m, IActivityLog log)
+    public static async Task<bool> UnmountAsync(Mapping m, IActivityLog log)
     {
         Process? p = m.Proc;
         if (p == null) { try { p = Process.GetProcessById(m.Pid); } catch { /* already gone */ } }
 
         if (p != null && !p.HasExited)
         {
-            bool sent = SignalCtrlC(m.Pid);
-            if (sent)
-                await Task.Run(() => p.WaitForExit(120_000));
-            if (!sent || !p.HasExited)
+            if (!SignalCtrlC(m.Pid))
             {
-                log.Note($"{m.Letter} could not be unmounted (drive may be busy).", isError: true);
-                return;
+                log.Note($"{m.Letter} could not be unmounted: failed to signal ltfs.exe (pid {m.Pid}).", isError: true);
+                return false;
             }
+            await p.WaitForExitAsync();
         }
 
         // The process Exited handler normally closes the mount entry; complete it
         // here too as a fallback (no-op if already done) so it never stays "RUNNING".
         m.Scope?.Complete(p?.HasExited == true ? p.ExitCode : null);
         log.Note($"{m.Letter} unmounted.");
+        return true;
     }
 
     /// <summary>Deliver Ctrl+C to one ltfs.exe's hidden console. Returns whether it was sent.</summary>

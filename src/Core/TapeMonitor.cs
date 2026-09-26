@@ -24,13 +24,19 @@ public sealed class TapeMonitor(IActivityLog log)
 
     // ---- inputs --------------------------------------------------------------
 
-    /// <summary>A mount came up (read through its volume from now on) or went away (null).</summary>
+    /// <summary>
+    /// A mount came up (read through its volume from now on) or went away (null:
+    /// the drive is fully re-read directly on a pass started now).
+    /// </summary>
     public void SetMount(string device, string? letter)
     {
         if (!_drives.TryGetValue(device, out var d)) return;
         d.Letter = letter;
         d.MamReadAt = default;
-        if (letter == null) Publish(d, d.State with { Usage = null });
+        if (letter != null) return;
+        d.Status = uint.MaxValue;
+        Publish(d, d.State with { Usage = null });
+        _ = PollNowAsync();
     }
 
     /// <summary>
