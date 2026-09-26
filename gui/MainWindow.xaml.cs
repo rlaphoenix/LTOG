@@ -21,14 +21,13 @@ public sealed partial class MainWindow : Window
 
     private readonly Settings _settings = Settings.Load();
     private readonly MountManager _mounts = new();
-    private List<TapeDrive> _drives = new();
+    /// <summary>Sole source of drive state: poll + publish. Nothing else touches the device.</summary>
+    private readonly TapeMonitor _monitor;
     private readonly List<Window> _childWindows = new();
     private string _page = "drives";   // title-bar switcher: drives, log, index, about, settings
     private bool _loadingUi;
-    private bool _polling;
     private bool _utilityRunning;
     private bool _envOk = true;
-    private DispatcherTimer? _pollTimer;
     private readonly Dictionary<string, FrameworkElement> _drivePages = new();   // by device
 
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -71,8 +70,28 @@ public sealed partial class MainWindow : Window
         }
         ApplySettingsToUi();
         string lastTag = _settings.LastTab;   // before drive tabs auto-select the first drive
-        RefreshDrives();
-        UpdateGlobalEnabled();
+
+        // ---- drive state subscriptions: the only way the UI learns about the hardware
+        _monitor = new TapeMonitor(Activity);
+        _monitor.DriveStateChanged += (dev, state) =>
+        {
+            var slot = SlotFor(dev);
+            if (state != null && slot != null) { slot.State = state; return; }
+            if (state == null) Slots.Remove(slot!);
+            else
+            {
+                slot = new DriveSlot { State = state, GlobalEnabled = _envOk && !_utilityRunning };
+                slot.SetLetters(_monitor.FreeLetters);
+                Slots.Add(slot);
+                TryAdopt(slot);   // before its first cartridge read, which is later in the same pass
+            }
+            SyncDriveTabs();
+        };
+        _monitor.FreeLettersChanged += letters =>
+        {
+            foreach (var s in Slots.Where(s => s.Phase == SlotPhase.Idle)) s.SetLetters(letters);
+        };
+        _monitor.Start();   // the first drive scan runs synchronously: tabs exist below
 
         // restore last selected drive tab
         var lastTab = Tabs.TabItems.OfType<TabViewItem>().FirstOrDefault(i => (string?)i.Tag == lastTag);
@@ -97,20 +116,9 @@ public sealed partial class MainWindow : Window
                 op.PreferredMinimumHeight = (int)(600 * scale);
                 op.PreferredMaximumWidth = (int)(1000 * scale);
             }
-            AdoptExternalMounts();
-            await PollSlotsAsync();
             if (App.AutoRemount)
                 await RemountPersistedAsync();
         };
-
-        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        _pollTimer.Tick += async (_, _) =>
-        {
-            RefreshDrivesIfChanged();
-            RefreshIdleSlotLetters();
-            await PollSlotsAsync();
-        };
-        _pollTimer.Start();
     }
 
     // ------------------------------------------------------------ window bounds
@@ -466,143 +474,7 @@ public sealed partial class MainWindow : Window
 
     // ------------------------------------------------------------ drives & slots
 
-    private void RefreshDrives()
-    {
-        _drives = NativeTape.Enumerate(Activity);
-        RebuildSlots();
-    }
-
-    /// <summary>
-    /// Auto-refresh (3s): re-enumerate only when the set of tape devices changed,
-    /// so drives (mounted ones included) aren't opened just to be re-identified.
-    /// </summary>
-    private void RefreshDrivesIfChanged()
-    {
-        if (NativeTape.PresentDevices().SequenceEqual(_drives.Select(d => d.Device)))
-            return;
-        List<TapeDrive> found;
-        try { found = NativeTape.Enumerate(Activity); }
-        catch { return; }
-        bool same = found.Count == _drives.Count &&
-                    found.Zip(_drives).All(p => p.First == p.Second);
-        if (same) return;
-
-        _drives = found;
-        RebuildSlots();
-    }
-
-    /// <summary>Sync the slots (and their tabs) with the detected drives, preserving state.</summary>
-    private void RebuildSlots()
-    {
-        // remove slots whose drive disappeared (keep mounted ones: the device
-        // node can be temporarily unopenable, and the mount still exists)
-        foreach (var gone in Slots.Where(s =>
-                     s.Phase == SlotPhase.Idle &&
-                     _drives.All(d => d.Device != s.Drive.Device)).ToList())
-            Slots.Remove(gone);
-
-        foreach (var d in _drives)
-        {
-            if (Slots.Any(s => s.Drive.Device == d.Device)) continue;
-            var slot = new DriveSlot { Drive = d };
-            slot.SetLetters(NativeTape.UnusedLetters());
-            Slots.Add(slot);
-        }
-
-        SyncDriveTabs();
-        UpdateGlobalEnabled();
-    }
-
-    private void RefreshIdleSlotLetters()
-    {
-        var free = NativeTape.UnusedLetters();
-        foreach (var s in Slots.Where(s => s.Phase == SlotPhase.Idle))
-            s.SetLetters(free);
-    }
-
-    /// <summary>
-    /// Identify the cartridge in every idle drive straight from the drive
-    /// (GetTapeStatus + MAM attributes) — independent of any mount.
-    /// </summary>
-    private async Task PollSlotsAsync()
-    {
-        if (_polling || _utilityRunning) return;   // never race a tool for the drive
-        _polling = true;
-        try
-        {
-            foreach (var slot in Slots.ToList())
-            {
-                if (slot.MediaOpRunning) continue;   // leave the drive alone mid eject/load
-                await PollSlotCoreAsync(slot);
-            }
-        }
-        finally { _polling = false; }
-    }
-
-    private async Task PollSlotCoreAsync(DriveSlot slot)
-    {
-        if (slot.Phase != SlotPhase.Idle)
-            slot.ProbedStatus = uint.MaxValue;   // a mount rewrites the MAM: re-read once idle
-        if (slot.Phase is SlotPhase.Mounting or SlotPhase.Unmounting)
-            return;
-
-        if (slot.Phase == SlotPhase.Mounted && slot.Mapping != null)
-        {
-            var m = slot.Mapping;
-            slot.CanMount = true;
-            // off the UI thread: LTFS can hold statfs while it writes an index
-            try { slot.LiveUsage = await Task.Run(() => { var di = new DriveInfo(m.Letter); return (di.TotalSize, di.TotalFreeSpace); }); }
-            catch { slot.LiveUsage = null; }
-
-            if (DateTime.UtcNow - slot.MountedMamReadAt >= TimeSpan.FromSeconds(30))
-            {
-                slot.MountedMamReadAt = DateTime.UtcNow;
-                try
-                {
-                    var prev = slot.LastCart;
-                    if (await Task.Run(() => NativeTape.ReadMountedCartridge(m.Letter, prev, Activity)) is { } c)
-                        slot.LastCart = c;
-                }
-                catch { }
-            }
-            return;
-        }
-        slot.MountedMamReadAt = default;
-
-        // Full read (MODE SENSE, MAM, ...) only when the drive's state changed.
-        uint status = await Task.Run(() => NativeTape.ProbeStatus(slot.Drive.Device));
-        if (status == slot.ProbedStatus)
-            return;
-        slot.ProbedStatus = status;
-
-        CartridgeInfo? cart = null;
-        try { cart = await Task.Run(() => NativeTape.ReadCartridgeInfo(slot.Drive.Device, Activity)); }
-        catch { }
-        slot.LastCart = cart;
-        switch (cart?.State)
-        {
-            case CartridgeState.NoMedia:
-                slot.CartridgeText = "No Cartridge Inserted";
-                slot.CanMount = false;
-                break;
-            case CartridgeState.NotLtfs:
-            case CartridgeState.Ltfs:
-                slot.CanMount = true;   // CartridgeText only shows without a cartridge; the dashboard covers it
-                break;
-            case CartridgeState.NotReady:
-                slot.CartridgeText = "Drive not ready...";
-                slot.CanMount = false;
-                break;
-            case CartridgeState.DriveInUse:
-                slot.CartridgeText = "Drive in use by another program";
-                slot.CanMount = false;
-                break;
-            default:
-                slot.CartridgeText = "Checking cartridge...";
-                slot.CanMount = true;
-                break;
-        }
-    }
+    private DriveSlot? SlotFor(string device) => Slots.FirstOrDefault(s => s.Drive.Device == device);
 
     // ------------------------------------------------------------ mounting
 
@@ -701,7 +573,11 @@ public sealed partial class MainWindow : Window
         slot.Phase = SlotPhase.Mounting;
         try
         {
-            await _mounts.MountAsync(mapping, Activity);
+            await _monitor.ExclusiveAsync(mapping.Device, async () =>
+            {
+                await _mounts.MountAsync(mapping, Activity, _monitor.VolumeUpAsync(letter));
+                _monitor.SetMount(mapping.Device, letter);   // inside: the re-read goes through the volume
+            });
             slot.Phase = SlotPhase.Mounted;
             slot.SetMountedLetter(letter);
             PersistMapping(mapping);
@@ -714,11 +590,7 @@ public sealed partial class MainWindow : Window
             _mappings.Remove(mapping);
             slot.Mapping = null;
             slot.Phase = SlotPhase.Idle;
-        }
-        finally
-        {
-            RefreshIdleSlotLetters();
-            await PollSlotsAsync();
+            slot.SetLetters(_monitor.FreeLetters);
         }
     }
 
@@ -729,7 +601,11 @@ public sealed partial class MainWindow : Window
         slot.Phase = SlotPhase.Unmounting;
         try
         {
-            await _mounts.UnmountAsync(mapping, Activity);
+            await _monitor.ExclusiveAsync(mapping.Device, async () =>
+            {
+                try { await _mounts.UnmountAsync(mapping, Activity); }
+                finally { _monitor.SetMount(mapping.Device, null); }
+            });
         }
         finally
         {
@@ -739,10 +615,8 @@ public sealed partial class MainWindow : Window
             UpdateRunKey();
             slot.Mapping = null;
             slot.Phase = SlotPhase.Idle;
-            slot.SetLetters(NativeTape.UnusedLetters(), prefer: mapping.Letter);
-            RefreshIdleSlotLetters();
+            slot.SetLetters(_monitor.FreeLetters, prefer: mapping.Letter);
             if (wasMounting) Log($"[{mapping.Letter}] mount cancelled");
-            await PollSlotsAsync();
         }
     }
 
@@ -774,15 +648,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void AdoptExternalMounts()
+    /// <summary>Take over a mount of this drive still running from a previous session.</summary>
+    private void TryAdopt(DriveSlot slot)
     {
-        foreach (var p in _settings.Mappings)
+        foreach (var p in _settings.Mappings.Where(p => p.Device == slot.Drive.Device))
         {
             if (!Directory.Exists($@"{p.Letter}\")) continue;
             int? pid = MountManager.FindExternalMount(p.Device);
             if (pid == null) continue;
-            var slot = Slots.FirstOrDefault(s => s.Drive.Device == p.Device);
-            if (slot == null || slot.Phase != SlotPhase.Idle) continue;
 
             Process? proc = null;
             try { proc = Process.GetProcessById(pid.Value); } catch { continue; }
@@ -811,7 +684,9 @@ public sealed partial class MainWindow : Window
             slot.ReadOnlyChecked = p.ReadOnly;
             slot.SetMountedLetter(p.Letter);
             slot.Phase = SlotPhase.Mounted;
+            _monitor.SetMount(p.Device, p.Letter);
             Activity.Note($"Adopted existing mount on {p.Letter} ({p.Device}, pid {pid}) from a previous session.");
+            return;
         }
     }
 
@@ -820,10 +695,10 @@ public sealed partial class MainWindow : Window
         if (!_settings.RemountAtStartup) return;
         foreach (var p in _settings.Mappings.ToList())
         {
-            var slot = Slots.FirstOrDefault(s => s.Drive.Device == p.Device);
+            var slot = SlotFor(p.Device);
             if (slot == null || slot.Phase != SlotPhase.Idle) continue;
 
-            var free = NativeTape.UnusedLetters();
+            var free = _monitor.FreeLetters;
             if (!free.Contains(p.Letter))
             {
                 Log($"[{p.Letter}] startup remount skipped: letter not free");
@@ -856,24 +731,9 @@ public sealed partial class MainWindow : Window
     {
         var slot = SlotOf(sender);
         if (!GuardUtility(slot) || slot!.MediaOpRunning) return;
-        string dev = slot.Drive.Device;
-        bool load = slot.MediaAbsent;
-        slot.MediaOpRunning = true;     // spinner until the state is re-read
-        var scope = Activity.Begin(LogKind.Native,
-            $"{dev}: {(load ? "Load" : "Eject")} cartridge",
-            $@"PrepareTape(\\.\{dev}, {(load ? "TAPE_LOAD" : "TAPE_UNLOAD")})");
-        try
-        {
-            if (load) { await Task.Run(() => NativeTape.Load(dev)); scope.Line("Cartridge loaded."); }
-            else { await Task.Run(() => NativeTape.Eject(dev)); scope.Line("Cartridge ejected."); }
-            scope.Complete();
-        }
-        catch (Exception ex) { scope.Complete(null, ex.Message); }
-        finally
-        {
-            await PollSlotCoreAsync(slot);
-            slot.MediaOpRunning = false;
-        }
+        slot.MediaOpRunning = true;     // spinner until the new state is published
+        try { await _monitor.LoadOrEjectAsync(slot.Drive.Device, slot.MediaAbsent); }
+        finally { slot.MediaOpRunning = false; }
     }
 
     private async void SlotFormat_Click(object sender, RoutedEventArgs e)
@@ -906,7 +766,7 @@ public sealed partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(serialBox.Text)) { args.Add("-s"); args.Add(serialBox.Text.Trim()); }
         if (!string.IsNullOrWhiteSpace(nameBox.Text)) { args.Add("-n"); args.Add(nameBox.Text.Trim()); }
         if (forceBox.IsChecked == true) args.Add("-f");
-        await RunUtility(LtfsEnv.MkltfsExe, args, $"Format cartridge — {dev}");
+        await RunUtility(dev, LtfsEnv.MkltfsExe, args, $"Format cartridge — {dev}");
     }
 
     private async void SlotUnformat_Click(object sender, RoutedEventArgs e)
@@ -927,7 +787,7 @@ public sealed partial class MainWindow : Window
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
 
-        await RunUtility(LtfsEnv.UnltfsExe,
+        await RunUtility(dev, LtfsEnv.UnltfsExe,
             new[] { "-i", LtfsEnv.LtfsConf, "-d", dev, "-y" }, $"Unformat cartridge — {dev}");
     }
 
@@ -936,26 +796,24 @@ public sealed partial class MainWindow : Window
         var slot = SlotOf(sender);
         if (!GuardUtility(slot)) return;
         string dev = slot!.Drive.Device;
-        await RunUtility(LtfsEnv.LtfsckExe,
+        await RunUtility(dev, LtfsEnv.LtfsckExe,
             new[] { "-i", LtfsEnv.LtfsConf, dev }, $"Check filesystem — {dev}");
     }
 
-    private async Task RunUtility(string exe, IReadOnlyList<string> args, string what)
+    private async Task RunUtility(string dev, string exe, IReadOnlyList<string> args, string what)
     {
         _utilityRunning = true;
         UpdateGlobalEnabled();
         try
         {
             // The command line, streamed output and exit code are logged by ToolRunner.
-            await ToolRunner.RunAsync(exe, args, Activity, LogKind.Tool, what);
+            await _monitor.ExclusiveAsync(dev, () => ToolRunner.RunAsync(exe, args, Activity, LogKind.Tool, what));
         }
         catch (Exception ex) { Activity.Note($"{what} failed: {ex.Message}", isError: true); }
         finally
         {
             _utilityRunning = false;
             UpdateGlobalEnabled();
-            foreach (var s in Slots) s.ProbedStatus = uint.MaxValue;   // tools rewrite the MAM
-            await PollSlotsAsync();
         }
     }
 

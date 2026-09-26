@@ -179,31 +179,30 @@ public sealed record StatGroup(string Title, IReadOnlyList<Stat> Items, int MaxC
 /// </summary>
 public sealed class DriveSlot : INotifyPropertyChanged
 {
-    public TapeDrive Drive { get; set; } = null!;
-    public string HeaderTitle => $"{Drive.Vendor} {Drive.Product}";
-
-    public Mapping? Mapping { get; set; }          // active mount, if any
-
-    private CartridgeInfo? _lastCart;              // last MAM read
-    private DriveParams? _driveParams;             // sticky: unreadable while mounted
-    private EncryptionInfo? _encryption;           // likewise
-    public CartridgeInfo? LastCart
+    private DriveState _state = null!;
+    /// <summary>The drive's latest published state, from <see cref="TapeMonitor"/>.</summary>
+    public DriveState State
     {
-        get => _lastCart;
+        get => _state;
         set
         {
-            _lastCart = value;
-            _driveParams = value?.DriveParams ?? _driveParams;
-            _encryption = value?.Encryption ?? _encryption;
+            _state = value;
+            _driveParams = value.Cartridge?.DriveParams ?? _driveParams;
+            _encryption = value.Cartridge?.Encryption ?? _encryption;
             RebuildDashboard();
             Changed();
         }
     }
+    public TapeDrive Drive => _state.Drive;
+    public string HeaderTitle => $"{Drive.Vendor} {Drive.Product}";
 
-    public DateTime MountedMamReadAt { get; set; }  // last MAM read through the mounted volume
-    public uint ProbedStatus { get; set; } = uint.MaxValue;   // drive status at the last full read; MaxValue = re-read
+    public Mapping? Mapping { get; set; }          // active mount, if any
 
-    public bool MediaAbsent => _lastCart?.State == CartridgeState.NoMedia;
+    private DriveParams? _driveParams;             // sticky: unreadable while mounted
+    private EncryptionInfo? _encryption;           // likewise
+    public CartridgeInfo? LastCart => _state.Cartridge;
+
+    public bool MediaAbsent => LastCart?.State == CartridgeState.NoMedia;
 
     private bool _mediaOpRunning;   // eject/load in progress
     public bool MediaOpRunning
@@ -227,12 +226,14 @@ public sealed class DriveSlot : INotifyPropertyChanged
         set { _phase = value; RebuildDashboard(); Changed(); }
     }
 
-    private string _cartridgeText = "Checking cartridge...";
-    public string CartridgeText
+    /// <summary>Shown only without a cartridge; the dashboard covers a loaded one.</summary>
+    public string CartridgeText => LastCart?.State switch
     {
-        get => _cartridgeText;
-        set { _cartridgeText = value; Changed(); }
-    }
+        CartridgeState.NoMedia => "No Cartridge Inserted",
+        CartridgeState.NotReady => "Drive not ready...",
+        CartridgeState.DriveInUse => "Drive in use by another program",
+        _ => "Checking cartridge...",
+    };
 
     /// <summary>Muted drive-status line under the drive name (the cartridge has its own section).</summary>
     public string StatusText => _mediaOpRunning ? EjectLoadText : _phase switch
@@ -240,7 +241,7 @@ public sealed class DriveSlot : INotifyPropertyChanged
         SlotPhase.Mounting => $"Mounting at {Mapping?.Letter}...",
         SlotPhase.Mounted => $"Mounted at {Mapping?.Letter}" + (Mapping?.Options.ReadOnly == true ? ", read-only" : ""),
         SlotPhase.Unmounting => "Unmounting...",
-        _ => _lastCart?.State switch
+        _ => LastCart?.State switch
         {
             CartridgeState.NoMedia => "Ready, no cartridge",
             CartridgeState.Ltfs or CartridgeState.NotLtfs => "Ready, cartridge loaded",
@@ -270,12 +271,8 @@ public sealed class DriveSlot : INotifyPropertyChanged
         set { _readOnly = value; Raise(nameof(ReadOnlyChecked)); }
     }
 
-    private bool _canMount = true;     // false when no cartridge is inserted
-    public bool CanMount
-    {
-        get => _canMount;
-        set { _canMount = value; Changed(); }
-    }
+    /// <summary>False when the drive has no usable cartridge; unknown (unreadable) is allowed.</summary>
+    public bool CanMount => LastCart?.State is null or CartridgeState.Ltfs or CartridgeState.NotLtfs;
 
     private bool _globalEnabled = true; // env resolved, no utility running
     public bool GlobalEnabled
@@ -290,7 +287,7 @@ public sealed class DriveSlot : INotifyPropertyChanged
 
     public bool ButtonEnabled => _globalEnabled && !_mediaOpRunning && _phase switch
     {
-        SlotPhase.Idle => _canMount,
+        SlotPhase.Idle => CanMount,
         SlotPhase.Mounting => true,    // acts as Cancel
         SlotPhase.Mounted => true,
         _ => false,
@@ -321,7 +318,7 @@ public sealed class DriveSlot : INotifyPropertyChanged
     private string? _sig;
 
     public bool HasCartridge => _phase != SlotPhase.Idle ||
-                                _lastCart?.State is CartridgeState.Ltfs or CartridgeState.NotLtfs;
+                                LastCart?.State is CartridgeState.Ltfs or CartridgeState.NotLtfs;
     public bool NoCartridge => !HasCartridge;
     public bool HasUsage => _capacity > 0;
     public double UsagePercent => _capacity > 0 ? 100.0 * (_capacity - _free) / _capacity : 0;
@@ -332,7 +329,7 @@ public sealed class DriveSlot : INotifyPropertyChanged
     public string UsedText => SchemaSnapshot.FormatSize(_capacity - _free);
     public string FreeText => SchemaSnapshot.FormatSize(_free);
     public string CapacityText => SchemaSnapshot.FormatSize(_capacity);
-    public string UsageSource => _phase == SlotPhase.Mounted && _live != null
+    public string UsageSource => _phase == SlotPhase.Mounted && _state.Usage != null
         ? "Live, from the mounted volume" : "From the cartridge memory (all partitions)";
 
     public Stat? NameStat { get; private set; }           // full-width tile
@@ -346,17 +343,10 @@ public sealed class DriveSlot : INotifyPropertyChanged
     public IReadOnlyList<Stat> DriveIdStats { get; private set; } = [];   // serial + firmware, two columns
     public IReadOnlyList<StatGroup> DriveGroups { get; private set; } = [];
 
-    private (long Total, long Free)? _live;
-    /// <summary>Free space of the mounted volume, polled off the UI thread.</summary>
-    public (long Total, long Free)? LiveUsage
-    {
-        get => _live;
-        set { _live = value; RebuildDashboard(); Changed(); }
-    }
 
     private void RebuildDashboard()
     {
-        var c = _lastCart;
+        var c = LastCart;
         var mam = c?.MamByPartition.FirstOrDefault() ?? new Dictionary<ushort, byte[]>();
         string? T(ushort id) => NativeTape.MamText(mam, id);
         ulong? N(ushort id) => NativeTape.MamNumber(mam, id);
@@ -382,7 +372,7 @@ public sealed class DriveSlot : INotifyPropertyChanged
             .ToList();
 
         // capacity: live from a mounted volume, else the per-partition MAM figures
-        (_capacity, _free) = _phase == SlotPhase.Mounted && _live is { } live ? live : (0, 0);
+        (_capacity, _free) = _phase == SlotPhase.Mounted && _state.Usage is { } live ? live : (0, 0);
         if (_capacity == 0)
             (_capacity, _free) = (parts.Sum(p => p.Cap), parts.Sum(p => p.Rem));
 

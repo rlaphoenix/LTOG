@@ -102,8 +102,8 @@ public class MountManager
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool SetConsoleCtrlHandler(IntPtr handler, bool add);
 
-    /// <summary>Start ltfs.exe for a mapping and wait for the volume to come up.</summary>
-    public async Task MountAsync(Mapping m, IActivityLog log)
+    /// <summary>Start ltfs.exe for a mapping and wait for the volume to come up (<paramref name="volumeUp"/>).</summary>
+    public async Task MountAsync(Mapping m, IActivityLog log, Task volumeUp)
     {
         var o = m.Options;
 
@@ -160,16 +160,14 @@ public class MountManager
         m.Proc = p;
 
         // Wait for the volume (tape index reads can take minutes)
-        var deadline = DateTime.Now.AddMinutes(10);
-        while (!Directory.Exists($@"{m.Letter}\") && !p.HasExited && DateTime.Now < deadline)
-            await Task.Delay(500);
+        await Task.WhenAny(volumeUp, p.WaitForExitAsync(), Task.Delay(TimeSpan.FromMinutes(10)));
 
         if (p.HasExited)
         {
             m.State = $"Failed (exit {p.ExitCode})";
             throw new IOException($"ltfs.exe exited with code {p.ExitCode} - see log");
         }
-        if (!Directory.Exists($@"{m.Letter}\"))
+        if (!volumeUp.IsCompleted)
         {
             m.State = "Timed out";
             throw new TimeoutException("Volume did not come up within 10 minutes");
