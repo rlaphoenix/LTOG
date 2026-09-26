@@ -47,14 +47,14 @@
                         <FontIcon Glyph="&#xEDA2;" />
                     </SelectorBarItem.Icon>
                 </SelectorBarItem>
-                <SelectorBarItem Tag="log" Text="Log">
-                    <SelectorBarItem.Icon>
-                        <FontIcon Glyph="&#xE7C3;" />
-                    </SelectorBarItem.Icon>
-                </SelectorBarItem>
                 <SelectorBarItem Tag="index" Text="Indexes">
                     <SelectorBarItem.Icon>
                         <FontIcon Glyph="&#xE8F1;" />
+                    </SelectorBarItem.Icon>
+                </SelectorBarItem>
+                <SelectorBarItem Tag="log" Text="Logs">
+                    <SelectorBarItem.Icon>
+                        <FontIcon Glyph="&#xE7C3;" />
                     </SelectorBarItem.Icon>
                 </SelectorBarItem>
             </SelectorBar>
