@@ -21,11 +21,9 @@ internal static class LogBrushes
     public static Brush Normal = null!, Muted = null!, Warning = null!, Error = null!,
         Accent = null!, Tool = null!, Native = null!,
         Running = null!, Success = null!, Failure = null!;
-    private static bool _ready;
 
-    public static void EnsureInit()
+    public static void Init()
     {
-        if (_ready) return;
         Brush R(string key) => (Brush)Application.Current.Resources[key];
         Normal  = R("TextFillColorPrimaryBrush");
         Muted   = R("TextFillColorSecondaryBrush");
@@ -37,7 +35,6 @@ internal static class LogBrushes
         Running = R("SystemFillColorAttentionBrush");
         Success = R("SystemFillColorSuccessBrush");
         Failure = R("SystemFillColorCriticalBrush");
-        _ready = true;
     }
 }
 
@@ -228,13 +225,13 @@ public sealed class ActivityLog : IActivityLog, INotifyPropertyChanged
     public ActivityLog(DispatcherQueue dispatcher)
     {
         _dq = dispatcher;
-        LogBrushes.EnsureInit();   // runs on the UI thread (MainWindow ctor)
+        LogBrushes.Init();   // runs on the UI thread (MainWindow ctor)
         FilePath = Path.Combine(Settings.Dir, "activity.log");
         try
         {
             Directory.CreateDirectory(Settings.Dir);
             if (!File.Exists(FilePath))
-                File.WriteAllText(FilePath, $"LTOG activity log — opened {Now()}{Environment.NewLine}{Environment.NewLine}");
+                File.WriteAllText(FilePath, $"LTOG activity log — opened {Stamp()}{Environment.NewLine}{Environment.NewLine}");
         }
         catch { /* logging must never throw */ }
     }
@@ -303,15 +300,14 @@ public sealed class ActivityLog : IActivityLog, INotifyPropertyChanged
         Entries.Add(e);
         while (Entries.Count > MaxEntries) Entries.RemoveAt(0);
         Raise(nameof(EmptyHint));
-        Updated?.Invoke();
     }
 
+    /// <summary>Run a mutation on the UI thread, then raise <see cref="Updated"/>.</summary>
     private void Post(Action a)
     {
-        if (!_dq.TryEnqueue(() => a())) a();
+        void Run() { a(); Updated?.Invoke(); }
+        if (!_dq.TryEnqueue(Run)) Run();
     }
-
-    private void Ping() => _dq.TryEnqueue(() => Updated?.Invoke());
 
     private void WriteFile(IEnumerable<string> lines)
     {
@@ -319,8 +315,7 @@ public sealed class ActivityLog : IActivityLog, INotifyPropertyChanged
         catch { /* best effort */ }
     }
 
-    private static string Stamp() => Now();
-    private static string Now() => DateTime.Now.ToString("HH:mm:ss");
+    private static string Stamp() => DateTime.Now.ToString("HH:mm:ss");
 
     private static string Tag(LogKind k) => k switch
     {
@@ -351,7 +346,6 @@ public sealed class ActivityLog : IActivityLog, INotifyPropertyChanged
         {
             _log.WriteFile(new[] { $"        │ {text}" });
             _log.Post(() => _entry.AddLine(text));
-            _log.Ping();
         }
 
         public void Complete(int? exitCode = null, string? error = null)
@@ -363,7 +357,6 @@ public sealed class ActivityLog : IActivityLog, INotifyPropertyChanged
             string outcome = error ?? (exitCode is int c ? $"exit {c}" : "finished");
             _log.WriteFile(new[] { $"        └─ {outcome}  ({secs:0.0}s)", "" });
             _log.Post(() => _entry.CompleteWith(exitCode, error, secs));
-            _log.Ping();
         }
     }
 }

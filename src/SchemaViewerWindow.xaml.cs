@@ -7,7 +7,6 @@ namespace LTOG;
 public sealed partial class SchemaViewerWindow : Window
 {
     private readonly SchemaSnapshot _snapshot;
-    private readonly HashSet<SchemaNode> _expandedOnce = new();
 
     public SchemaViewerWindow(string schemaPath)
     {
@@ -27,8 +26,7 @@ public sealed partial class SchemaViewerWindow : Window
         catch { }
 
         PopulateCartridgeProperties();
-        if (_snapshot.Root != null)
-            SchemaTree.RootNodes.Add(BuildTreeNode(_snapshot.Root, true));
+        SchemaTree.RootNodes.Add(BuildTreeNode(_snapshot.Root, true));
         ShowNode(_snapshot.Root);
     }
 
@@ -48,7 +46,7 @@ public sealed partial class SchemaViewerWindow : Window
     {
         var treeNode = new TreeViewNode
         {
-            Content = new SchemaTreeRow(node),
+            Content = node,
             IsExpanded = expanded,
             HasUnrealizedChildren = node.Children.Count > 0,
         };
@@ -59,15 +57,10 @@ public sealed partial class SchemaViewerWindow : Window
 
     private void SchemaTree_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
     {
-        if (args.InvokedItem is SchemaTreeRow row)
+        if ((args.InvokedItem as SchemaNode ?? (args.InvokedItem as TreeViewNode)?.Content) is SchemaNode node)
         {
-            ShowNode(row.Node);
-            ToggleTreeNode(row.Node);
-        }
-        else if (args.InvokedItem is TreeViewNode treeNode && treeNode.Content is SchemaTreeRow row2)
-        {
-            ShowNode(row2.Node);
-            ToggleTreeNode(row2.Node);
+            ShowNode(node);
+            ToggleTreeNode(node);
         }
     }
 
@@ -85,7 +78,7 @@ public sealed partial class SchemaViewerWindow : Window
     {
         foreach (var treeNode in nodes)
         {
-            if (treeNode.Content is SchemaTreeRow row && ReferenceEquals(row.Node, target))
+            if (ReferenceEquals(treeNode.Content, target))
                 return treeNode;
             var child = FindTreeNode(treeNode.Children, target);
             if (child != null)
@@ -96,40 +89,18 @@ public sealed partial class SchemaViewerWindow : Window
 
     private static void PopulateTreeNode(TreeViewNode treeNode)
     {
-        if (treeNode.Content is not SchemaTreeRow row)
+        if (!treeNode.HasUnrealizedChildren || treeNode.Content is not SchemaNode node)
             return;
-        var node = row.Node;
-        if (!treeNode.HasUnrealizedChildren && treeNode.Children.Count > 0)
-            return;
-        if (treeNode.Children.Count == node.Children.Count &&
-            treeNode.Children.All(child => child.Content is SchemaTreeRow))
-            return;
-
-        treeNode.Children.Clear();
         foreach (var child in node.Children)
             treeNode.Children.Add(BuildTreeNode(child));
         treeNode.HasUnrealizedChildren = false;
     }
 
-    private void SchemaTree_Expanding(object sender, TreeViewExpandingEventArgs args)
-    {
-        if (args.Node.Content is not SchemaTreeRow row)
-            return;
-        if (!_expandedOnce.Add(row.Node))
-            return;
+    private void SchemaTree_Expanding(object sender, TreeViewExpandingEventArgs args) =>
         PopulateTreeNode(args.Node);
-    }
 
-    private void ShowNode(SchemaNode? node)
+    private void ShowNode(SchemaNode node)
     {
-        if (node == null)
-        {
-            SelectedPathBox.Text = "";
-            LengthText.Text = FileIdText.Text = ReadOnlyText.Text = CreatedText.Text =
-                ModifiedText.Text = AccessedText.Text = BackupText.Text = LocationText.Text = "";
-            return;
-        }
-
         SelectedPathBox.Text = string.IsNullOrWhiteSpace(node.Path) ? "\\" : node.Path;
         LengthText.Text = node.IsDirectory
             ? $"{node.Children.Count:N0} item{(node.Children.Count == 1 ? "" : "s")}"

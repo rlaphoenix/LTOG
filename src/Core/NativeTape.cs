@@ -294,63 +294,33 @@ public static class NativeTape
     {
         const int bufLen = 0x4000;   // LTO MAM is 4-16 KiB in total
         var attrs = new Dictionary<ushort, byte[]>();
-        IntPtr data = Marshal.AllocHGlobal(bufLen);
-        try
+        for (int first = 0; first <= 0xFFFF;)
         {
-            for (int first = 0; first <= 0xFFFF;)
+            var buf = ScsiIn(h, new byte[]
             {
-                var s = new SptdWithSense
-                {
-                    Sptd = new ScsiPassThroughDirect
-                    {
-                        Length = (ushort)Marshal.SizeOf<ScsiPassThroughDirect>(),
-                        CdbLength = 16,
-                        SenseInfoLength = 32,
-                        DataIn = 1, // SCSI_IOCTL_DATA_IN
-                        DataTransferLength = bufLen,
-                        TimeOutValue = 30,
-                        DataBuffer = data,
-                        SenseInfoOffset = (uint)Marshal.OffsetOf<SptdWithSense>(nameof(SptdWithSense.Sense)),
-                        Cdb = new byte[16],
-                    },
-                    Sense = new byte[32],
-                };
-                s.Sptd.Cdb[0] = 0x8C;                        // READ ATTRIBUTE
-                s.Sptd.Cdb[1] = 0x00;                        // service action: attribute values
-                s.Sptd.Cdb[7] = partition;
-                s.Sptd.Cdb[8] = (byte)(first >> 8);          // first attribute id (BE)
-                s.Sptd.Cdb[9] = (byte)(first & 0xFF);
-                s.Sptd.Cdb[12] = (byte)(bufLen >> 8);        // allocation length (BE, bytes 10..13)
-                s.Sptd.Cdb[13] = (byte)(bufLen & 0xFF);
+                0x8C, 0x00, 0, 0, 0, 0, 0, partition,        // READ ATTRIBUTE, attribute values
+                (byte)(first >> 8), (byte)(first & 0xFF),    // first attribute id (BE)
+                0, 0, bufLen >> 8, bufLen & 0xFF, 0, 0,      // allocation length (BE, bytes 10..13)
+            }, bufLen);
+            if (buf == null)
+                break;
 
-                int size = Marshal.SizeOf<SptdWithSense>();
-                if (!DeviceIoControl(h, IOCTL_SCSI_PASS_THROUGH_DIRECT, ref s, size, ref s, size,
-                                     out _, IntPtr.Zero) || s.Sptd.ScsiStatus != 0)
-                    break;
-
-                var buf = new byte[bufLen];
-                Marshal.Copy(data, buf, 0, bufLen);
-                // Response: 4-byte available length, then entries of id(2) fmt(1) len(2) value
-                long avail = (long)buf[0] << 24 | (long)buf[1] << 16 | (long)buf[2] << 8 | buf[3];
-                int end = (int)Math.Min(bufLen, 4 + avail);
-                int last = -1;
-                for (int i = 4; i + 5 <= end;)
-                {
-                    int len = (buf[i + 3] << 8) | buf[i + 4];
-                    if (i + 5 + len > end) break;
-                    last = (buf[i] << 8) | buf[i + 1];
-                    attrs[(ushort)last] = buf[(i + 5)..(i + 5 + len)];
-                    i += 5 + len;
-                }
-                if (4 + avail <= bufLen || last < first) break;   // all read, or no progress
-                first = last + 1;
+            // Response: 4-byte available length, then entries of id(2) fmt(1) len(2) value
+            long avail = (long)buf[0] << 24 | (long)buf[1] << 16 | (long)buf[2] << 8 | buf[3];
+            int end = (int)Math.Min(bufLen, 4 + avail);
+            int last = -1;
+            for (int i = 4; i + 5 <= end;)
+            {
+                int len = (buf[i + 3] << 8) | buf[i + 4];
+                if (i + 5 + len > end) break;
+                last = (buf[i] << 8) | buf[i + 1];
+                attrs[(ushort)last] = buf[(i + 5)..(i + 5 + len)];
+                i += 5 + len;
             }
-            return attrs;
+            if (4 + avail <= bufLen || last < first) break;   // all read, or no progress
+            first = last + 1;
         }
-        finally
-        {
-            Marshal.FreeHGlobal(data);
-        }
+        return attrs;
     }
 
     /// <summary>Big-endian unsigned MAM value, or null if absent.</summary>
@@ -485,52 +455,19 @@ public static class NativeTape
     private static (bool WriteProtected, byte DensityCode, uint? BlockLength)? ReadModeParams(SafeFileHandle h)
     {
         const int bufLen = 64;
-        IntPtr data = Marshal.AllocHGlobal(bufLen);
-        try
-        {
-            var s = new SptdWithSense
-            {
-                Sptd = new ScsiPassThroughDirect
-                {
-                    Length = (ushort)Marshal.SizeOf<ScsiPassThroughDirect>(),
-                    CdbLength = 10,
-                    SenseInfoLength = 32,
-                    DataIn = 1, // SCSI_IOCTL_DATA_IN
-                    DataTransferLength = bufLen,
-                    TimeOutValue = 30,
-                    DataBuffer = data,
-                    SenseInfoOffset = (uint)Marshal.OffsetOf<SptdWithSense>(nameof(SptdWithSense.Sense)),
-                    Cdb = new byte[16],
-                },
-                Sense = new byte[32],
-            };
-            s.Sptd.Cdb[0] = SCSIOP_MODE_SENSE10;   // MODE SENSE(10)
-            s.Sptd.Cdb[1] = 0x00;                  // DBD=0: include the block descriptor
-            s.Sptd.Cdb[2] = 0x3F;                  // PC=current values, page 0x3F (all pages)
-            s.Sptd.Cdb[7] = (byte)(bufLen >> 8);   // allocation length (BE)
-            s.Sptd.Cdb[8] = (byte)(bufLen & 0xFF);
-
-            int size = Marshal.SizeOf<SptdWithSense>();
-            if (!DeviceIoControl(h, IOCTL_SCSI_PASS_THROUGH_DIRECT, ref s, size, ref s, size,
-                                 out _, IntPtr.Zero) || s.Sptd.ScsiStatus != 0)
-                return null;
-
-            var buf = new byte[bufLen];
-            Marshal.Copy(data, buf, 0, bufLen);
-            // Header: [3] device-specific parameter (bit 7 = WP),
-            //         [6..7] block descriptor length. The block descriptor follows the
-            //         8-byte header; its first byte ([8]) is the density code and
-            //         [13..15] the block length (0 = variable).
-            bool wp = (buf[3] & 0x80) != 0;
-            int bdLen = (buf[6] << 8) | buf[7];
-            byte density = bdLen >= 8 ? buf[8] : (byte)0;
-            uint? blockLen = bdLen >= 8 ? (uint)(buf[13] << 16 | buf[14] << 8 | buf[15]) : null;
-            return (wp, density, blockLen);
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(data);
-        }
+        // MODE SENSE(10), DBD=0 (include the block descriptor), PC=current, page 0x3F (all)
+        var buf = ScsiIn(h, new byte[] { SCSIOP_MODE_SENSE10, 0x00, 0x3F, 0, 0, 0, 0, 0, bufLen, 0 }, bufLen);
+        if (buf == null)
+            return null;
+        // Header: [3] device-specific parameter (bit 7 = WP),
+        //         [6..7] block descriptor length. The block descriptor follows the
+        //         8-byte header; its first byte ([8]) is the density code and
+        //         [13..15] the block length (0 = variable).
+        bool wp = (buf[3] & 0x80) != 0;
+        int bdLen = (buf[6] << 8) | buf[7];
+        byte density = bdLen >= 8 ? buf[8] : (byte)0;
+        uint? blockLen = bdLen >= 8 ? (uint)(buf[13] << 16 | buf[14] << 8 | buf[15]) : null;
+        return (wp, density, blockLen);
     }
 
     /// <summary>Map an LTO medium density code to its generation name.</summary>

@@ -90,10 +90,8 @@ public partial class App : Application
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LTOG");
-            Directory.CreateDirectory(dir);
-            File.AppendAllText(Path.Combine(dir, "crash.log"),
+            Directory.CreateDirectory(Settings.Dir);
+            File.AppendAllText(Path.Combine(Settings.Dir, "crash.log"),
                 $"[{DateTime.Now:O}] {text}\n");
         }
         catch { }

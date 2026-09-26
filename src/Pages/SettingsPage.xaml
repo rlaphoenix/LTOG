@@ -62,7 +62,7 @@
                                 <TextBlock Text="periodically, every" VerticalAlignment="Center" />
                                 <NumberBox x:Name="PeriodBox" Minimum="1" Maximum="1440"
                                            SmallChange="1" SpinButtonPlacementMode="Compact"
-                                           ValueChanged="Period_ValueChanged" />
+                                           ValueChanged="Number_ValueChanged" />
                                 <TextBlock Text="minutes" VerticalAlignment="Center" />
                             </StackPanel>
                         </RadioButton>
@@ -94,7 +94,7 @@
                                                VerticalAlignment="Center" TextWrapping="Wrap" />
                                     <NumberBox x:Name="IndexSizeBox" Minimum="1" Maximum="999999"
                                                SmallChange="1" SpinButtonPlacementMode="Compact" Width="120"
-                                               ValueChanged="IndexSize_ValueChanged" />
+                                               ValueChanged="Number_ValueChanged" />
                                     <ComboBox x:Name="IndexUnitCombo" VerticalAlignment="Center"
                                               SelectionChanged="SettingChanged">
                                         <ComboBoxItem Content="KB" />

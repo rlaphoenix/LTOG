@@ -89,7 +89,7 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     public string StatusText => _mediaOpRunning ? EjectLoadText : _phase switch
     {
         MountPhase.Mounting => $"Mounting at {Mapping?.Letter}...",
-        MountPhase.Mounted => $"Mounted at {Mapping?.Letter}" + (Mapping?.Options.ReadOnly == true ? ", read-only" : ""),
+        MountPhase.Mounted => $"Mounted at {Mapping?.Letter}" + (Mapping?.ReadOnly == true ? ", read-only" : ""),
         MountPhase.Unmounting => "Unmounting...",
         _ => LastCart?.State switch
         {

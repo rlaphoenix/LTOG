@@ -74,110 +74,62 @@ internal static class SchemaParser
         var doc = XDocument.Load(f.FullName, LoadOptions.None);
         var root = doc.Root ?? throw new InvalidDataException("Missing LTFS index root element.");
 
-        var snapshot = new SchemaSnapshot
+        var rootDir = root.ElementsAny("directory").FirstOrDefault();
+        return new SchemaSnapshot
         {
             Path = f.FullName,
-            FileName = f.Name,
             FormatVersion = Attr(root, "version"),
             Creator = Text(root, "creator"),
             VolumeUuid = Text(root, "volumeuuid"),
             GenerationNumber = Text(root, "generationnumber"),
             UpdatedText = FormatSchemaTime(Text(root, "updatetime")),
-            LocationText = ReadLocation(ElementAny(root, "location")),
-            PreviousLocationText = ReadLocation(ElementAny(root, "previousgenerationlocation")),
             HighestFileUid = Text(root, "highestfileuid"),
             PolicyOverrideText = IsTrue(Text(root, "allowpolicyupdate")) ? "Permitted" : "Not permitted",
             VolumeLockState = Text(root, "volumelockstate"),
+            Root = rootDir != null
+                ? ReadNode(rootDir, "", 0)
+                : new SchemaNode { Name = "(empty index)", Path = "/", IsDirectory = true },
         };
-
-        var rootDir = root.ElementsAny("directory").FirstOrDefault();
-        if (rootDir != null)
-        {
-            snapshot.Root = ReadNode(rootDir, "", 0, snapshot);
-            snapshot.VolumeName = string.IsNullOrWhiteSpace(snapshot.Root.Name)
-                ? "(unlabelled volume)"
-                : snapshot.Root.Name;
-            snapshot.Root.Expanded = true;
-        }
-        else
-        {
-            snapshot.Root = new SchemaNode
-            {
-                Name = "(empty index)",
-                Path = "/",
-                Type = "Directory",
-                IsDirectory = true,
-                Expanded = true,
-            };
-        }
-
-        return snapshot;
     }
 
-    private static SchemaNode ReadNode(XElement element, string parentPath, int depth, SchemaSnapshot snapshot)
+    private static SchemaNode ReadNode(XElement element, string parentPath, int depth)
     {
         bool isDirectory = element.Name.LocalName == "directory";
         var node = new SchemaNode
         {
             Name = Text(element, "name"),
-            Type = isDirectory ? "Directory" : "File",
             IsDirectory = isDirectory,
             ReadOnly = IsTrue(Text(element, "readonly")),
-            OpenForWrite = IsTrue(Text(element, "openforwrite")),
             FileUid = Text(element, "fileuid"),
             CreationTime = FormatSchemaTime(Text(element, "creationtime")),
-            ChangeTime = FormatSchemaTime(Text(element, "changetime")),
             ModifyTime = FormatSchemaTime(Text(element, "modifytime")),
             AccessTime = FormatSchemaTime(Text(element, "accesstime")),
             BackupTime = FormatSchemaTime(Text(element, "backuptime")),
-            Depth = depth,
         };
 
         if (long.TryParse(Text(element, "length"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var length))
-        {
             node.Length = length;
-            snapshot.TotalBytes += length;
-        }
 
         if (string.IsNullOrWhiteSpace(node.Name))
             node.Name = isDirectory && depth == 0 ? "/" : "(unnamed)";
         node.Path = CombineSchemaPath(parentPath, node.Name, depth);
 
-        foreach (var extentInfo in element.ElementsAny("extentinfo"))
-        {
-            foreach (var extent in extentInfo.ElementsAny("extent"))
-                node.Extents.Add(ReadExtent(extent));
-        }
+        var firstExtent = element.ElementsAny("extentinfo").SelectMany(e => e.ElementsAny("extent")).FirstOrDefault();
+        if (firstExtent != null)
+            node.FirstLocationText = ReadLocation(firstExtent);
 
         var contents = element.ElementsAny("contents").FirstOrDefault();
         if (contents != null)
         {
             foreach (var child in contents.Elements().Where(e => e.Name.LocalName is "directory" or "file"))
-                node.Children.Add(ReadNode(child, node.Path, depth + 1, snapshot));
+                node.Children.Add(ReadNode(child, node.Path, depth + 1));
         }
-
-        if (isDirectory) snapshot.DirectoryCount++;
-        else snapshot.FileCount++;
 
         return node;
     }
 
-    private static SchemaExtent ReadExtent(XElement element) => new()
-    {
-        FileOffset = Text(element, "fileoffset"),
-        Partition = Text(element, "partition"),
-        StartBlock = Text(element, "startblock"),
-        ByteOffset = Text(element, "byteoffset"),
-        ByteCount = Text(element, "bytecount"),
-    };
-
-    private static string ReadLocation(XElement? element)
-    {
-        if (element == null) return "Not specified";
-        string partition = Text(element, "partition");
-        string block = Text(element, "startblock");
-        return $"Partition {Blank(partition)} starting from block {Blank(block)}";
-    }
+    private static string ReadLocation(XElement element) =>
+        $"Partition {Blank(Text(element, "partition"))} starting from block {Blank(Text(element, "startblock"))}";
 
     private static string CombineSchemaPath(string parentPath, string name, int depth)
     {
@@ -208,9 +160,6 @@ internal static class SchemaParser
 
     private static IEnumerable<XElement> ElementsAny(this XContainer element, string localName) =>
         element.Elements().Where(e => e.Name.LocalName == localName);
-
-    private static XElement? ElementAny(XContainer element, string localName) =>
-        element.Elements().FirstOrDefault(e => e.Name.LocalName == localName);
 
     private static string Blank(string value) => string.IsNullOrWhiteSpace(value) ? "?" : value;
 }

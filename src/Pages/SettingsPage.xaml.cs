@@ -55,7 +55,7 @@ public sealed partial class SettingsPage : UserControl
         IndexNameBox.IsEnabled = en;
     }
 
-    private void IndexSize_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    private void Number_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
     {
         if (_loadingUi) return;
         SaveSettingsFromUi();
@@ -70,19 +70,13 @@ public sealed partial class SettingsPage : UserControl
         App.Settings.ApplyRunKey();
     }
 
-    private void Period_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        if (_loadingUi) return;
-        SaveSettingsFromUi();
-    }
-
     private void SaveSettingsFromUi()
     {
         App.Settings.EjectAfterUnmount = EjectAfterUnmountCheck.IsChecked == true;
         App.Settings.RemountAtStartup = RemountCheck.IsChecked == true;
         App.Settings.CaptureIndex = CaptureIndexCheck.IsChecked == true;
         App.Settings.WorkFolder = string.IsNullOrWhiteSpace(WorkFolderBox.Text)
-            ? @"C:\tmp\ltfs" : WorkFolderBox.Text.Trim();
+            ? Settings.DefaultWorkFolder : WorkFolderBox.Text.Trim();
         App.Settings.OverrideSyncPolicy = OverridePolicyCheck.IsChecked == true;
         App.Settings.SyncPolicyMode = PolicyDismountRadio.IsChecked == true ? 0 : 1;
         App.Settings.SyncPeriodMinutes = double.IsNaN(PeriodBox.Value) ? 5 : Math.Max(1, (int)PeriodBox.Value);

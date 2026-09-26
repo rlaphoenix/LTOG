@@ -13,7 +13,8 @@ public class PersistedMapping
 public class Settings
 {
     public bool CaptureIndex { get; set; } = true;
-    public string WorkFolder { get; set; } = @"C:\tmp\ltfs";
+    public const string DefaultWorkFolder = @"C:\tmp\ltfs";
+    public string WorkFolder { get; set; } = DefaultWorkFolder;
     public bool OverrideSyncPolicy { get; set; } = false;
     /// <summary>0 = when volume is dismounted, 1 = periodically every N minutes</summary>
     public int SyncPolicyMode { get; set; } = 1;

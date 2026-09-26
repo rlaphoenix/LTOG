@@ -14,7 +14,6 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
 {
     public ObservableCollection<DriveViewModel> Drives { get; } = new();
 
-    private readonly MountManager _mounts = new();
     private readonly TapeMonitor _monitor = new(log);
     private bool _utilityRunning;
 
@@ -48,21 +47,6 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
 
     // ------------------------------------------------------------ mounting
 
-    private MountOptions OptionsFrom(DriveViewModel vm) => new()
-    {
-        ReadOnly = vm.ReadOnlyChecked,
-        EjectAfterUnmount = settings.EjectAfterUnmount,
-        CaptureIndex = settings.CaptureIndex,
-        WorkFolder = settings.WorkFolder,
-        OverrideSyncPolicy = settings.OverrideSyncPolicy,
-        SyncPolicyMode = settings.SyncPolicyMode,
-        SyncPeriodMinutes = settings.SyncPeriodMinutes,
-        AppendOnly = settings.AppendOnly,
-        IndexRules = settings.ComposeIndexRules(),
-        LogDirectory = settings.LogDirectory,
-        Verbosity = settings.Verbosity,
-    };
-
     /// <summary>Mount the vm's cartridge on its selected letter (the caller checks one is selected).</summary>
     public async Task MountAsync(DriveViewModel vm)
     {
@@ -75,12 +59,10 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
             Letter = letter,
             Device = vm.Drive.Device,
             Description = vm.Drive.Display,
-            Options = OptionsFrom(vm),
+            ReadOnly = vm.ReadOnlyChecked,
             // Reuse the cartridge identity already read from the MAM chip.
             VolumeName = vm.LastCart?.State == CartridgeState.Ltfs ? vm.LastCart.VolumeName : null,
             FormatVersion = vm.LastCart?.State == CartridgeState.Ltfs ? vm.LastCart.FormatVersion : null,
-            LtoGeneration = vm.LastCart?.LtoGeneration,
-            WriteProtected = vm.LastCart?.WriteProtected ?? false,
         };
         vm.Mapping = mapping;
         vm.Phase = MountPhase.Mounting;
@@ -88,7 +70,7 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
         {
             await _monitor.ExclusiveAsync(mapping.Device, async () =>
             {
-                await _mounts.MountAsync(mapping, log, _monitor.VolumeUpAsync(letter));
+                await MountManager.MountAsync(mapping, settings, log, _monitor.VolumeUpAsync(letter));
                 _monitor.SetMount(mapping.Device, letter);   // inside: the re-read goes through the volume
             });
             vm.Phase = MountPhase.Mounted;
@@ -116,7 +98,7 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
         {
             await _monitor.ExclusiveAsync(mapping.Device, async () =>
             {
-                try { await _mounts.UnmountAsync(mapping, log); }
+                try { await MountManager.UnmountAsync(mapping, log); }
                 finally { _monitor.SetMount(mapping.Device, null); }
             });
         }
@@ -139,7 +121,7 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
         {
             Letter = m.Letter,
             Device = m.Device,
-            ReadOnly = m.Options.ReadOnly,
+            ReadOnly = m.ReadOnly,
         });
         settings.Save();
         settings.ApplyRunKey();
@@ -162,16 +144,8 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
                 Letter = p.Letter,
                 Device = p.Device,
                 Description = vm.Drive.Display,
-                Options = new MountOptions
-                {
-                    ReadOnly = p.ReadOnly,
-                    EjectAfterUnmount = settings.EjectAfterUnmount,
-                    CaptureIndex = settings.CaptureIndex,
-                    WorkFolder = settings.WorkFolder,
-                },
+                ReadOnly = p.ReadOnly,
                 Pid = pid.Value,
-                IsExternal = true,
-                State = "Mounted",
                 // The real volume label WinFsp set from -o volname.
                 VolumeName = MountManager.GetVolumeLabel(p.Letter),
                 Proc = proc,
