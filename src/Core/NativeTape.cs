@@ -120,13 +120,12 @@ public static class NativeTape
         Enumerable.Range(0, 10).Select(i => $"TAPE{i}")
             .Where(d => QueryDosDevice(d, new char[512], 512) != 0).ToList();
 
-    /// <summary>Probe \\.\TAPE0 .. \\.\TAPE9 and read vendor/product/serial.</summary>
-    public static List<TapeDrive> Enumerate(IActivityLog? log = null)
+    /// <summary>Read vendor/product/serial of each present device (from <see cref="PresentDevices"/>).</summary>
+    public static List<TapeDrive> Enumerate(IReadOnlyList<string> devices, IActivityLog? log = null)
     {
         var drives = new List<TapeDrive>();
-        for (int i = 0; i < 10; i++)
+        foreach (var dev in devices)
         {
-            string dev = $"TAPE{i}";
             using var h = OpenQuery(dev);
             if (h.IsInvalid)
                 continue;

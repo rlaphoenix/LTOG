@@ -146,7 +146,7 @@ public sealed class TapeMonitor(IActivityLog log)
         var present = NativeTape.PresentDevices();
         if (present.SequenceEqual(_present)) return;
         _present = present;
-        var found = NativeTape.Enumerate(log);
+        var found = NativeTape.Enumerate(present, log);
         // keep a mounted or busy drive: its device node can be briefly unopenable
         foreach (var dev in _drives.Where(p => p.Value.Letter == null && p.Value.Holds == 0
                      && found.All(f => f.Device != p.Key)).Select(p => p.Key).ToList())
