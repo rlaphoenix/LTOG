@@ -50,7 +50,7 @@ public sealed partial class MainWindow : Window
         var ico = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico");
         if (File.Exists(ico))
             AppWindow.SetIcon(ico);
-        Closed += (_, _) => SaveWindowBounds();
+        Closed += (_, _) => { _pollTimer?.Stop(); SaveWindowBounds(); };
 
         if (!LtfsEnv.Resolve(_settings.DistPath))
         {
@@ -368,13 +368,35 @@ public sealed partial class MainWindow : Window
 
     private void RefreshDrives()
     {
+        if (!CanProbeDevices())
+        {
+            // Reopening the GUI must not probe a drive used by an external mount.
+            // Persisted identities are sufficient to adopt it below.
+            _drives = _settings.Mappings.Select(p => p.Device)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(device => new TapeDrive(device, "", "", "")).ToList();
+            RebuildSlots();
+            return;
+        }
         _drives = NativeTape.Enumerate(Activity);
         RebuildSlots();
     }
 
+    private bool CanProbeDevices() => DeviceProbePolicy.CanProbe(
+        _utilityRunning || Slots.Any(s => s.MediaOpRunning || s.Phase != SlotPhase.Idle),
+        () =>
+        {
+            // Process metadata only: no device handles, volume reads or SCSI calls.
+            // Block even when an external mount cannot be adopted (unknown mapping).
+            var processes = Process.GetProcessesByName("ltfs");
+            try { return processes.Length > 0; }
+            finally { foreach (var process in processes) process.Dispose(); }
+        });
+
     /// <summary>Auto-refresh (5s): re-enumerate and only touch the UI on change.</summary>
     private void RefreshDrivesIfChanged()
     {
+        if (_polling || !CanProbeDevices()) return;
         List<TapeDrive> found;
         try { found = NativeTape.Enumerate(Activity); }
         catch { return; }
@@ -421,7 +443,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private async Task PollSlotsAsync()
     {
-        if (_polling) return;
+        if (_polling || !CanProbeDevices()) return;
         _polling = true;
         try
         {
@@ -466,6 +488,8 @@ public sealed partial class MainWindow : Window
             slot.CanMount = true;
             return;
         }
+
+        if (!CanProbeDevices()) return;
 
         CartridgeInfo? cart = null;
         try { cart = await Task.Run(() => NativeTape.ReadCartridgeInfo(slot.Drive.Device, Activity)); }
@@ -782,8 +806,8 @@ public sealed partial class MainWindow : Window
         catch (Exception ex) { scope.Complete(null, ex.Message); }
         finally
         {
-            await PollSlotCoreAsync(slot);
             slot.MediaOpRunning = false;
+            await PollSlotCoreAsync(slot);
         }
     }
 
