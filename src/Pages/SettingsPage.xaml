@@ -24,50 +24,46 @@
             </StackPanel>
 
             <StackPanel>
-                <TextBlock Text="Index capture" Style="{StaticResource SectionHeader}" />
+                <TextBlock Text="Indexing" Style="{StaticResource SectionHeader}" />
                 <Border Style="{StaticResource Card}">
-                    <StackPanel Spacing="10">
-                        <CheckBox x:Name="CaptureIndexCheck"
-                                  Content="Capture snapshot of index at mount/unmount time"
-                                  IsChecked="True" Click="SettingChanged" />
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Working folder" VerticalAlignment="Center" />
-                            <TextBox x:Name="WorkFolderBox" Grid.Column="1" Text="C:\tmp\ltfs"
-                                     LostFocus="SettingChanged" />
-                        </Grid>
-                        <TextBlock IsTextSelectionEnabled="True" Text="Snapshots are plain LTFS index XML — off-tape backups of the volume's metadata. Browse them on the Indexes page."
-                                   FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-
-            <StackPanel>
-                <TextBlock Text="Index updates" Style="{StaticResource SectionHeader}" />
-                <Border Style="{StaticResource Card}">
-                    <StackPanel Spacing="8">
-                        <CheckBox x:Name="OverridePolicyCheck"
-                                  Content="Override default index update policy"
-                                  Click="SettingChanged" />
-                        <RadioButton x:Name="PolicyDismountRadio" GroupName="SyncPolicy"
-                                     Content="when volume is dismounted" Margin="24,0,0,0"
-                                     IsEnabled="False" Click="SettingChanged" />
-                        <RadioButton x:Name="PolicyPeriodicRadio" GroupName="SyncPolicy"
-                                     IsChecked="True" Margin="24,0,0,0"
-                                     IsEnabled="False" Click="SettingChanged">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="periodically, every" VerticalAlignment="Center" />
-                                <NumberBox x:Name="PeriodBox" Minimum="1" Maximum="1440"
-                                           SmallChange="1" SpinButtonPlacementMode="Compact"
-                                           ValueChanged="Number_ValueChanged" />
-                                <TextBlock Text="minutes" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </RadioButton>
-                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                   IsTextSelectionEnabled="True" Text="Default policy: the index is written to tape every time a modified file is closed (sync_type=close)." />
+                    <StackPanel Spacing="16">
+                        <StackPanel Spacing="10">
+                            <CheckBox x:Name="CaptureIndexCheck"
+                                      Content="Capture snapshot of index at mount/unmount time"
+                                      IsChecked="True" Click="SettingChanged" />
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Working folder" VerticalAlignment="Center" />
+                                <TextBox x:Name="WorkFolderBox" Grid.Column="1" Text="C:\tmp\ltfs"
+                                         LostFocus="SettingChanged" />
+                            </Grid>
+                            <TextBlock IsTextSelectionEnabled="True" Text="Snapshots are plain LTFS index XML — off-tape backups of the volume's metadata. Browse them on the Indexes page."
+                                       FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <CheckBox x:Name="OverridePolicyCheck"
+                                      Content="Override default index update policy"
+                                      Click="SettingChanged" />
+                            <RadioButton x:Name="PolicyDismountRadio" GroupName="SyncPolicy"
+                                         Content="when volume is dismounted" Margin="24,0,0,0"
+                                         IsEnabled="False" Click="SettingChanged" />
+                            <RadioButton x:Name="PolicyPeriodicRadio" GroupName="SyncPolicy"
+                                         IsChecked="True" Margin="24,0,0,0"
+                                         IsEnabled="False" Click="SettingChanged">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="periodically, every" VerticalAlignment="Center" />
+                                    <NumberBox x:Name="PeriodBox" Minimum="1" Maximum="1440"
+                                               SmallChange="1" SpinButtonPlacementMode="Compact"
+                                               ValueChanged="Number_ValueChanged" />
+                                    <TextBlock Text="minutes" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                            <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True" Text="Default policy: the index is written to tape every time a modified file is closed (sync_type=close)." />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </StackPanel>
