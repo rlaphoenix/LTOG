@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Each tape's serial, generation and partition sizes are recorded in `tapes.db`
-  whenever it is loaded, mounted or not, so the Indexes and Search tabs can show
+  whenever it is loaded, mounted or not, so the Tapes and Search tabs can show
   its capacity and free space.
 
 ## [2.0.0] - 2026-09-26

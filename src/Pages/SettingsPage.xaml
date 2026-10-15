@@ -40,7 +40,7 @@
                                 <TextBox x:Name="WorkFolderBox" Grid.Column="1" Text="C:\tmp\ltfs"
                                          LostFocus="SettingChanged" />
                             </Grid>
-                            <TextBlock IsTextSelectionEnabled="True" Text="Snapshots are plain LTFS index XML — off-tape backups of the volume's metadata. Browse them on the Indexes page."
+                            <TextBlock IsTextSelectionEnabled="True" Text="Snapshots are plain LTFS index XML — off-tape backups of the volume's metadata. Browse them on the Search and Tapes pages."
                                        FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
                         </StackPanel>
                         <StackPanel Spacing="8">

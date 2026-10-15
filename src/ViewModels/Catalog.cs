@@ -45,7 +45,7 @@ public sealed class CatalogNode
             i++;
             SchemaSnapshot s;
             try { s = SchemaParser.Parse(f); }
-            catch { continue; }   // unreadable: the Indexes page flags it
+            catch { continue; }   // unreadable: the Tapes page flags it
             string name = s.Root.Name is "/" or "(empty index)" ? "" : s.Root.Name;   // LTFS root name = volume name
             var rec = records.GetValueOrDefault(s.VolumeUuid);
             string label = new[] { name, rec?.Barcode, rec?.Serial }.FirstOrDefault(l => !string.IsNullOrEmpty(l))

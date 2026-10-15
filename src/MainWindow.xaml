@@ -52,7 +52,7 @@
                         <FontIcon Glyph="&#xE721;" />
                     </SelectorBarItem.Icon>
                 </SelectorBarItem>
-                <SelectorBarItem Tag="index" Text="Indexes">
+                <SelectorBarItem Tag="tapes" Text="Tapes">
                     <SelectorBarItem.Icon>
                         <FontIcon Glyph="&#xE8F1;" />
                     </SelectorBarItem.Icon>
@@ -109,7 +109,7 @@
         <Grid x:Name="PagesHost" Grid.Row="3">
             <local:NoDrivesPage x:Name="NoDrivesView" Visibility="Collapsed" />
             <local:SearchPage x:Name="SearchView" Visibility="Collapsed" />
-            <local:IndexesPage x:Name="IndexesView" Visibility="Collapsed" />
+            <local:TapesPage x:Name="TapesView" Visibility="Collapsed" />
             <local:LogPage x:Name="LogView" Visibility="Collapsed" />
             <local:SettingsPage x:Name="SettingsView" Visibility="Collapsed" />
             <local:AboutPage x:Name="AboutView" Visibility="Collapsed" />

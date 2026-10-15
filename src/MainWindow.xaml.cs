@@ -11,7 +11,7 @@ namespace LTOG;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    private string _page = "drives";   // title-bar switcher: drives, search, index, log, about, settings
+    private string _page = "drives";   // title-bar switcher: drives, search, tapes, log, about, settings
     private readonly Dictionary<string, FrameworkElement> _drivePages = new();   // by device
 
     public MainWindow()
@@ -180,7 +180,7 @@ public sealed partial class MainWindow : Window
         }
         _page = (string)item.Tag;
         if (_page == "search") SearchView.Refresh();
-        if (_page == "index") IndexesView.RefreshSchemas();
+        if (_page == "tapes") TapesView.RefreshSchemas();
         if (_page == "about") _ = AboutView.LoadAsync();
         ShowPage();
     }
@@ -195,7 +195,7 @@ public sealed partial class MainWindow : Window
         NoDrivesView.Visibility = Vis(drives && dev == null);
         TabStrip.Visibility = Vis(drives && Tabs.TabItems.Count > 1);
         SearchView.Visibility = Vis(_page == "search");
-        IndexesView.Visibility = Vis(_page == "index");
+        TapesView.Visibility = Vis(_page == "tapes");
         LogView.Visibility = Vis(_page == "log");
         AboutView.Visibility = Vis(_page == "about");
         SettingsView.Visibility = Vis(_page == "settings");

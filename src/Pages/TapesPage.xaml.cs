@@ -5,9 +5,9 @@ using System.Diagnostics;
 namespace LTOG;
 
 /// <summary>Captured LTFS index snapshots in the working folder; opens them in the viewer.</summary>
-public sealed partial class IndexesPage : UserControl
+public sealed partial class TapesPage : UserControl
 {
-    public IndexesPage()
+    public TapesPage()
     {
         InitializeComponent();
         _loadingUi = true;

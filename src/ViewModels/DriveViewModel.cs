@@ -240,7 +240,7 @@ public sealed class DriveViewModel : INotifyPropertyChanged
                 ? TapeRecord.LtfsSpace(parts[0].Cap, parts[^1].Cap, parts[^1].Rem)
                 : (parts.Sum(p => p.Cap), parts.Sum(p => p.Rem));
 
-        // remember each volume's serial and partitions for the Indexes and Search pages (indexes
+        // remember each volume's serial and partitions for the Tapes and Search pages (indexes
         // don't carry them): saved when they change, and when the tape is loaded, mounted,
         // unmounted or ejected, so "as of" is when it was last seen
         var now = DateTime.UtcNow;
