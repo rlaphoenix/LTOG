@@ -21,9 +21,6 @@ public sealed partial class IndexesPage : UserControl
     private bool _schemasLoading;
     private List<SchemaItem> _schemaItems = new();
 
-    [System.Runtime.InteropServices.DllImport("shlwapi.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-    private static extern int StrCmpLogicalW(string a, string b);   // Explorer's natural sort
-
     public async void RefreshSchemas()
     {
         if (_schemasLoading) return;
@@ -51,10 +48,10 @@ public sealed partial class IndexesPage : UserControl
     {
         IEnumerable<SchemaItem> sorted = App.Settings.IndexSort switch
         {
-            1 => _schemaItems.OrderByDescending(i => i.Title, Comparer<string>.Create(StrCmpLogicalW)),
+            1 => _schemaItems.OrderByDescending(i => i.Title, SchemaParser.Natural),
             2 => _schemaItems.OrderByDescending(i => i.Captured),
             3 => _schemaItems.OrderBy(i => i.Captured),
-            _ => _schemaItems.OrderBy(i => i.Title, Comparer<string>.Create(StrCmpLogicalW)),
+            _ => _schemaItems.OrderBy(i => i.Title, SchemaParser.Natural),
         };
         SchemaList.ItemsSource = sorted.ToList();
     }

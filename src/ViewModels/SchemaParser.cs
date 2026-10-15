@@ -5,6 +5,11 @@ namespace LTOG;
 
 internal static class SchemaParser
 {
+    [System.Runtime.InteropServices.DllImport("shlwapi.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int StrCmpLogicalW(string a, string b);
+    /// <summary>Explorer's natural sort ("file2" before "file10").</summary>
+    public static readonly IComparer<string> Natural = Comparer<string>.Create(StrCmpLogicalW);
+
     /// <summary>
     /// Extract the interesting bits of an LTFS index snapshot: volume name,
     /// generation, on-tape update time, file count, volume UUID.
@@ -108,6 +113,8 @@ internal static class SchemaParser
             ModifyTime = FormatSchemaTime(Text(element, "modifytime")),
             AccessTime = FormatSchemaTime(Text(element, "accesstime")),
             BackupTime = FormatSchemaTime(Text(element, "backuptime")),
+            CreatedUtc = Utc(Text(element, "creationtime")),
+            ModifiedUtc = Utc(Text(element, "modifytime")),
         };
 
         if (long.TryParse(Text(element, "length"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var length))
@@ -149,6 +156,9 @@ internal static class SchemaParser
             return dt.UtcDateTime.ToString("yyyy-MM-dd 'at' HH:mm:ss '(UTC)'");
         return value;
     }
+
+    private static DateTime? Utc(string value) =>
+        DateTimeOffset.TryParse(value, null, DateTimeStyles.AssumeUniversal, out var dt) ? dt.UtcDateTime : null;
 
     private static bool IsTrue(string value) =>
         value.Equals("true", StringComparison.OrdinalIgnoreCase) ||

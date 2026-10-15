@@ -47,6 +47,11 @@
                         <FontIcon Glyph="&#xEDA2;" />
                     </SelectorBarItem.Icon>
                 </SelectorBarItem>
+                <SelectorBarItem Tag="search" Text="Search">
+                    <SelectorBarItem.Icon>
+                        <FontIcon Glyph="&#xE721;" />
+                    </SelectorBarItem.Icon>
+                </SelectorBarItem>
                 <SelectorBarItem Tag="index" Text="Indexes">
                     <SelectorBarItem.Icon>
                         <FontIcon Glyph="&#xE8F1;" />
@@ -103,6 +108,7 @@
         <!-- pages: one DrivePage per drive tab is added in code; the rest are fixed -->
         <Grid x:Name="PagesHost" Grid.Row="3">
             <local:NoDrivesPage x:Name="NoDrivesView" Visibility="Collapsed" />
+            <local:SearchPage x:Name="SearchView" Visibility="Collapsed" />
             <local:IndexesPage x:Name="IndexesView" Visibility="Collapsed" />
             <local:LogPage x:Name="LogView" Visibility="Collapsed" />
             <local:SettingsPage x:Name="SettingsView" Visibility="Collapsed" />

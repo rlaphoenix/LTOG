@@ -57,6 +57,8 @@ public sealed class SchemaNode
     public string ModifyTime { get; set; } = "";
     public string AccessTime { get; set; } = "";
     public string BackupTime { get; set; } = "";
+    public DateTime? CreatedUtc { get; set; }
+    public DateTime? ModifiedUtc { get; set; }
     /// <summary>Where the file's first extent starts on tape.</summary>
     public string FirstLocationText { get; set; } = "Not specified";
     public List<SchemaNode> Children { get; } = new();

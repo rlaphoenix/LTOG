@@ -1,0 +1,146 @@
+<Window
+    x:Class="LTOG.SearchFiltersWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Search filters">
+
+    <!-- fixed-size window (see ClientSize): laid out for the tallest state, every criterion on "Between" -->
+    <Grid x:Name="Root" Padding="24,20,24,0">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="Escape" Invoked="Close_Invoked" />
+        </Grid.KeyboardAccelerators>
+        <Grid.Resources>
+            <Style x:Key="Label" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+                <Setter Property="Margin" Value="0,0,0,6" />
+            </Style>
+            <Style x:Key="And" TargetType="TextBlock">
+                <Setter Property="Text" Value="and" />
+                <Setter Property="Opacity" Value="0.7" />
+                <Setter Property="HorizontalAlignment" Value="Right" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Margin" Value="0,8,0,0" />
+            </Style>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="210" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- how the name is matched, and what kind of item -->
+        <StackPanel>
+            <TextBlock Text="Match" Style="{StaticResource Label}" />
+            <CheckBox x:Name="PartialBox" Content="Partial match" />
+            <CheckBox x:Name="CaseBox" Content="Case-sensitive" />
+            <CheckBox x:Name="AnyWordBox" Content="Any word" />
+            <CheckBox x:Name="DiacriticsBox" Content="Ignore diacritics" />
+            <CheckBox x:Name="WildcardsBox" Content="Wildcards (* and ?)" />
+            <CheckBox x:Name="RegexBox" Content="Regular expression" />
+            <CheckBox x:Name="FuzzyBox" Content="Fuzzy" />
+            <TextBlock Text="Type" Style="{StaticResource Label}" Margin="0,20,0,6" />
+            <ComboBox x:Name="TypeBox" HorizontalAlignment="Stretch" AutomationProperties.Name="Type" />
+        </StackPanel>
+
+        <Border Grid.Column="1" Width="1" Margin="24,0"
+                Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+        <!-- date / time / size: operator on the left, its values beside it, the second value under the first -->
+        <Grid Grid.Column="2" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.ColumnSpan="2" Text="Date modified" Style="{StaticResource Label}" />
+            <ComboBox x:Name="DateOp" Grid.Row="1" HorizontalAlignment="Stretch" AutomationProperties.Name="Date modified">
+                <x:String>Ignore</x:String>
+                <x:String>On</x:String>
+                <x:String>Before</x:String>
+                <x:String>After</x:String>
+                <x:String>Between</x:String>
+                <x:String>Not between</x:String>
+                <x:String>Within the last</x:String>
+            </ComboBox>
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <CalendarDatePicker x:Name="DateA" AutomationProperties.Name="Date" />
+                <NumberBox x:Name="DateDays" Minimum="1" MinWidth="100" SpinButtonPlacementMode="Compact"
+                           AutomationProperties.Name="Days" />
+                <TextBlock x:Name="DateDaysLabel" Text="days" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock x:Name="DateAnd" Grid.Row="2" Style="{StaticResource And}" />
+            <CalendarDatePicker x:Name="DateB" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
+                                AutomationProperties.Name="Second date" />
+
+            <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Text="Time modified" Style="{StaticResource Label}" Margin="0,24,0,6" />
+            <ComboBox x:Name="TimeOp" Grid.Row="4" HorizontalAlignment="Stretch" AutomationProperties.Name="Time modified">
+                <x:String>Ignore</x:String>
+                <x:String>At</x:String>
+                <x:String>Before</x:String>
+                <x:String>After</x:String>
+                <x:String>Between</x:String>
+                <x:String>Not between</x:String>
+                <x:String>± One hour</x:String>
+                <x:String>± Six hours</x:String>
+                <x:String>Within the last</x:String>
+            </ComboBox>
+            <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <TimePicker x:Name="TimeA" AutomationProperties.Name="Time" />
+                <NumberBox x:Name="TimeHours" Minimum="1" MinWidth="100" SpinButtonPlacementMode="Compact"
+                           AutomationProperties.Name="Hours" />
+                <TextBlock x:Name="TimeHoursLabel" Text="hours" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock x:Name="TimeAnd" Grid.Row="5" Style="{StaticResource And}" />
+            <TimePicker x:Name="TimeB" Grid.Row="5" Grid.Column="1" Margin="0,8,0,0"
+                        AutomationProperties.Name="Second time" />
+
+            <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Text="Size" Style="{StaticResource Label}" Margin="0,24,0,6" />
+            <ComboBox x:Name="SizeOp" Grid.Row="7" HorizontalAlignment="Stretch" AutomationProperties.Name="Size">
+                <x:String>Ignore</x:String>
+                <x:String>Equals</x:String>
+                <x:String>Smaller than</x:String>
+                <x:String>Greater than</x:String>
+                <x:String>Between</x:String>
+                <x:String>Not between</x:String>
+                <x:String>± 25%</x:String>
+                <x:String>± 50%</x:String>
+            </ComboBox>
+            <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <NumberBox x:Name="SizeA" Minimum="0" Width="130" AutomationProperties.Name="Size value" />
+                <ComboBox x:Name="SizeUnit" MinWidth="90" AutomationProperties.Name="Unit">
+                    <x:String>B</x:String>
+                    <x:String>KiB</x:String>
+                    <x:String>MiB</x:String>
+                    <x:String>GiB</x:String>
+                    <x:String>TiB</x:String>
+                </ComboBox>
+            </StackPanel>
+            <TextBlock x:Name="SizeAnd" Grid.Row="8" Style="{StaticResource And}" />
+            <NumberBox x:Name="SizeB" Grid.Row="8" Grid.Column="1" Minimum="0" Width="130" Margin="0,8,0,0"
+                       HorizontalAlignment="Left" AutomationProperties.Name="Second size value" />
+        </Grid>
+
+        <!-- footer -->
+        <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="-24,20,-24,0" Padding="24,16"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <Button Content="Reset" Click="Reset_Click" MinWidth="90" />
+            <Button Content="Close" Click="Close_Click" MinWidth="90" HorizontalAlignment="Right"
+                    Style="{StaticResource AccentButtonStyle}" />
+        </Grid>
+    </Grid>
+</Window>
