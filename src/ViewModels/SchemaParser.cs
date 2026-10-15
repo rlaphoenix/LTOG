@@ -17,27 +17,30 @@ internal static class SchemaParser
         {
             using var reader = System.Xml.XmlReader.Create(f.FullName,
                 new System.Xml.XmlReaderSettings { IgnoreWhitespace = true, IgnoreComments = true });
-            while (reader.Read())
+            while (!reader.EOF)
             {
-                if (reader.NodeType != System.Xml.XmlNodeType.Element) continue;
-                switch (reader.LocalName)
+                if (reader.NodeType == System.Xml.XmlNodeType.Element)
                 {
-                    case "name" when name == null:           // first <name> = volume name
-                        name = reader.ReadElementContentAsString();
-                        break;
-                    case "volumeuuid" when uuid == null:
-                        uuid = reader.ReadElementContentAsString();
-                        break;
-                    case "generationnumber" when gen == null:
-                        gen = reader.ReadElementContentAsString();
-                        break;
-                    case "updatetime" when updated == null:
-                        updated = reader.ReadElementContentAsString();
-                        break;
-                    case "file":
-                        fileCount++;
-                        break;
+                    switch (reader.LocalName)
+                    {
+                        case "name" when name == null:           // first <name> = volume name
+                            name = reader.ReadElementContentAsString();
+                            continue;
+                        case "volumeuuid" when uuid == null:
+                            uuid = reader.ReadElementContentAsString();
+                            continue;
+                        case "generationnumber" when gen == null:
+                            gen = reader.ReadElementContentAsString();
+                            continue;
+                        case "updatetime" when updated == null:
+                            updated = reader.ReadElementContentAsString();
+                            continue;
+                        case "file":
+                            fileCount++;
+                            break;
+                    }
                 }
+                reader.Read();
             }
         }
         catch
