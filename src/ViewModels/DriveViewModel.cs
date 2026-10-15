@@ -180,7 +180,9 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     public string FreeText => SchemaSnapshot.FormatSize(_free);
     public string CapacityText => SchemaSnapshot.FormatSize(_capacity);
     public string UsageSource => _phase == MountPhase.Mounted && _state.Usage != null
-        ? "Live, from the mounted volume" : "From the cartridge memory (all partitions)";
+        ? "Live, from the mounted volume"
+        : LastCart?.State == CartridgeState.Ltfs ? "From the cartridge memory (data partition)"
+        : "From the cartridge memory (all partitions)";
 
     public Stat? NameStat { get; private set; }           // full-width tile
     public Stat? ManufacturerStat { get; private set; }   // half-width tiles, under the others
@@ -221,10 +223,12 @@ public sealed class DriveViewModel : INotifyPropertyChanged
             .Select(p => (Cap: (long)p.Cap!.Value << 20, Rem: (long)p.Rem << 20))
             .ToList();
 
-        // capacity: live from a mounted volume, else the per-partition MAM figures
+        // capacity: live from a mounted volume, else the per-partition MAM figures;
+        // LTFS only stores files in the data (last) partition, so the index partition doesn't count
         (_capacity, _free) = _phase == MountPhase.Mounted && _state.Usage is { } live ? live : (0, 0);
+        var usable = c?.State == CartridgeState.Ltfs ? parts.TakeLast(1) : parts;
         if (_capacity == 0)
-            (_capacity, _free) = (parts.Sum(p => p.Cap), parts.Sum(p => p.Rem));
+            (_capacity, _free) = (usable.Sum(p => p.Cap), usable.Sum(p => p.Rem));
 
         string type = (c?.LtoGeneration ?? "LTO") + N(0x0408) switch
         {
