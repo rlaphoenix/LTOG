@@ -19,8 +19,8 @@
                           SelectionChanged="SchemaSort_Changed">
                     <ComboBoxItem Content="Name (A–Z)" />
                     <ComboBoxItem Content="Name (Z–A)" />
-                    <ComboBoxItem Content="Newest captured" />
-                    <ComboBoxItem Content="Oldest captured" />
+                    <ComboBoxItem Content="Modified (newest)" />
+                    <ComboBoxItem Content="Modified (oldest)" />
                 </ComboBox>
             </Grid>
             <TextBlock x:Name="NoSchemasText" Text="No captured indexes yet."
@@ -28,29 +28,69 @@
             <ItemsControl x:Name="SchemaList">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:SchemaItem">
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Spacing="1">
-                                    <TextBlock Text="{x:Bind Title}"
-                                               Style="{StaticResource BodyStrongTextBlockStyle}"
-                                               IsTextSelectionEnabled="True" />
-                                    <TextBlock Text="{x:Bind GenLine}" FontSize="12"
-                                               Opacity="0.75" TextWrapping="Wrap"
-                                               IsTextSelectionEnabled="True" />
-                                    <TextBlock Text="{x:Bind CaptureLine}" FontSize="12"
-                                               Opacity="0.75" TextWrapping="Wrap"
-                                               IsTextSelectionEnabled="True" />
-                                    <TextBlock Text="{x:Bind Uuid}" FontSize="11"
-                                               Opacity="0.5" TextWrapping="Wrap"
-                                               IsTextSelectionEnabled="True" />
-                                </StackPanel>
-                                <Button Grid.Column="1" Content="Open"
-                                        VerticalAlignment="Center"
-                                        Click="SchemaOpen_Click" />
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,12" Padding="0"
+                                BorderThickness="{x:Bind CardBorder}" CornerRadius="{x:Bind CardCorners}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid ColumnSpacing="12" Margin="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="1">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{x:Bind Title}"
+                                                       Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                       IsTextSelectionEnabled="True" />
+                                            <Border CornerRadius="10" Padding="8,1" VerticalAlignment="Center"
+                                                    Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                    Visibility="{x:Bind HasGeneration}">
+                                                <TextBlock Text="{x:Bind GenerationText}" FontSize="12" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind Serial}" FontSize="11"
+                                                   Opacity="0.5" TextWrapping="Wrap"
+                                                   IsTextSelectionEnabled="True"
+                                                   Visibility="{x:Bind HasSerial}" />
+                                        <TextBlock Text="{x:Bind WrittenText}" FontSize="12" Margin="0,8,0,0"
+                                                   Opacity="0.75" TextWrapping="Wrap"
+                                                   IsTextSelectionEnabled="True" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                        <StackPanel Spacing="1" Visibility="{x:Bind HasTape}">
+                                            <TextBlock Text="{x:Bind FreeText}" FontSize="12" Opacity="0.75"
+                                                       HorizontalAlignment="Right" />
+                                            <TextBlock Text="{x:Bind UsedText}" FontSize="12" Opacity="0.75"
+                                                       HorizontalAlignment="Right" />
+                                        </StackPanel>
+                                        <TextBlock Text="Space unknown" FontSize="12" Opacity="0.75"
+                                                   Visibility="{x:Bind NoTape}"
+                                                   HorizontalAlignment="Right"
+                                                   ToolTipService.ToolTip="Load this tape in a drive to record its space." />
+                                        <TextBlock Text="{x:Bind FilesText}" FontSize="12" Opacity="0.75"
+                                                   HorizontalAlignment="Right" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Open"
+                                            VerticalAlignment="Center"
+                                            Click="SchemaOpen_Click" />
+                                </Grid>
+                                <!-- usage bar, coloured as the drive page's capacity bar (red above 90%) -->
+                                <Grid Grid.Row="1" Height="3" Visibility="{x:Bind HasTape}"
+                                      Background="{ThemeResource ControlStrongStrokeColorDefaultBrush}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="{x:Bind UsedLength}" />
+                                        <ColumnDefinition Width="{x:Bind FreeLength}" />
+                                    </Grid.ColumnDefinitions>
+                                    <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                               Visibility="{x:Bind UsageNormal}" />
+                                    <Rectangle Fill="{ThemeResource SystemFillColorCriticalBrush}"
+                                               Visibility="{x:Bind UsageCritical}" />
+                                </Grid>
                             </Grid>
                         </Border>
                     </DataTemplate>

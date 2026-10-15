@@ -12,11 +12,11 @@ internal static class SchemaParser
 
     /// <summary>
     /// Extract the interesting bits of an LTFS index snapshot: volume name,
-    /// generation, on-tape update time, file count, volume UUID.
+    /// on-tape update time, file count, volume UUID.
     /// </summary>
     public static SchemaItem Summarize(FileInfo f)
     {
-        string? name = null, uuid = null, gen = null, updated = null;
+        string? name = null, uuid = null, updated = null;
         int fileCount = 0;
         try
         {
@@ -34,9 +34,6 @@ internal static class SchemaParser
                         case "volumeuuid" when uuid == null:
                             uuid = reader.ReadElementContentAsString();
                             continue;
-                        case "generationnumber" when gen == null:
-                            gen = reader.ReadElementContentAsString();
-                            continue;
                         case "updatetime" when updated == null:
                             updated = reader.ReadElementContentAsString();
                             continue;
@@ -53,27 +50,19 @@ internal static class SchemaParser
             return new SchemaItem
             {
                 Title = f.Name,
-                GenLine = "Unreadable index snapshot",
-                CaptureLine = $"Captured {f.LastWriteTime:yyyy-MM-dd HH:mm}, {f.Length / 1024.0:0.#} KB",
+                Unreadable = true,
                 Path = f.FullName,
-                Captured = f.LastWriteTime,
             };
         }
-
-        string updatedText = "";
-        if (updated != null && DateTime.TryParse(updated, null,
-                System.Globalization.DateTimeStyles.AdjustToUniversal, out var dt))
-            updatedText = $", tape index written {dt.ToLocalTime():yyyy-MM-dd HH:mm}";
 
         return new SchemaItem
         {
             Title = string.IsNullOrEmpty(name) ? "(unlabelled volume)" : name,
-            GenLine = $"Index generation {gen ?? "?"}{updatedText}",
-            CaptureLine = $"Captured {f.LastWriteTime:yyyy-MM-dd HH:mm}, " +
-                          $"{fileCount:N0} file{(fileCount == 1 ? "" : "s")}, {f.Length / 1024.0:0.#} KB",
+            FileCount = fileCount,
             Uuid = uuid ?? "",
             Path = f.FullName,
-            Captured = f.LastWriteTime,
+            Written = DateTime.TryParse(updated, null, DateTimeStyles.AdjustToUniversal, out var dt)
+                ? dt.ToLocalTime() : null,
         };
     }
 

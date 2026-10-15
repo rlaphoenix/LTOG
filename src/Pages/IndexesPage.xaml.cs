@@ -33,6 +33,7 @@ public sealed partial class IndexesPage : UserControl
                     .GetFiles("*.schema")
                     .Select(SchemaParser.Summarize)
                     .ToList());
+            foreach (var i in _schemaItems) i.Tape = Core.TapeDb.Get(i.Uuid);
             ApplySchemaSort();
             NoSchemasText.Visibility = _schemaItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -49,8 +50,8 @@ public sealed partial class IndexesPage : UserControl
         IEnumerable<SchemaItem> sorted = App.Settings.IndexSort switch
         {
             1 => _schemaItems.OrderByDescending(i => i.Title, SchemaParser.Natural),
-            2 => _schemaItems.OrderByDescending(i => i.Captured),
-            3 => _schemaItems.OrderBy(i => i.Captured),
+            2 => _schemaItems.OrderByDescending(i => i.Written),
+            3 => _schemaItems.OrderBy(i => i.Written),
             _ => _schemaItems.OrderBy(i => i.Title, SchemaParser.Natural),
         };
         SchemaList.ItemsSource = sorted.ToList();
