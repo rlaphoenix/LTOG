@@ -127,8 +127,12 @@
                         </StackPanel>
                     </Expander.Header>
                     <StackPanel Spacing="12">
-                        <TextBlock Text="{x:Bind ViewModel.CartridgeText, Mode=OneWay}" Opacity="0.6" Margin="2,0"
-                                   Visibility="{x:Bind ViewModel.NoCartridge, Mode=OneWay}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,0"
+                                    Visibility="{x:Bind ViewModel.NoCartridge, Mode=OneWay}">
+                            <ProgressRing IsActive="{x:Bind ViewModel.CartridgeLoading, Mode=OneWay}" Width="16" Height="16"
+                                          Visibility="{x:Bind ViewModel.CartridgeLoading, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind ViewModel.CartridgeText, Mode=OneWay}" Opacity="0.6" VerticalAlignment="Center" />
+                        </StackPanel>
 
                         <StackPanel Spacing="12" Visibility="{x:Bind ViewModel.HasCartridge, Mode=OneWay}">
                             <ContentPresenter Content="{x:Bind ViewModel.NameStat, Mode=OneWay}"

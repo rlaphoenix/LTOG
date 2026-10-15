@@ -77,12 +77,12 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Shown only without a cartridge; the dashboard covers a loaded one.</summary>
-    public string CartridgeText => LastCart?.State switch
+    public string CartridgeText => _mediaOpRunning ? EjectLoadText : LastCart?.State switch
     {
         CartridgeState.NoMedia => "No Cartridge Inserted",
         CartridgeState.NotReady => "Drive not ready...",
         CartridgeState.DriveInUse => "Drive in use by another program",
-        _ => "Checking cartridge...",
+        _ => "Reading cartridge...",
     };
 
     /// <summary>Muted drive-status line under the drive name (the cartridge has its own section).</summary>
@@ -137,9 +137,9 @@ public sealed class DriveViewModel : INotifyPropertyChanged
 
     public bool ButtonEnabled => _globalEnabled && !_mediaOpRunning && _phase switch
     {
-        MountPhase.Idle => CanMount,
+        MountPhase.Idle => CanMount && !CartridgeLoading,
         MountPhase.Mounting => true,    // acts as Cancel
-        MountPhase.Mounted => true,
+        MountPhase.Mounted => !CartridgeLoading,
         _ => false,
     };
 
@@ -167,8 +167,9 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     private long _capacity, _free;   // bytes
     private string? _sig;
 
-    public bool HasCartridge => _phase != MountPhase.Idle ||
-                                LastCart?.State is CartridgeState.Ltfs or CartridgeState.NotLtfs;
+    public bool CartridgeLoading => _mediaOpRunning || LastCart?.State is null or CartridgeState.NotReady;
+    public bool HasCartridge => !CartridgeLoading && (_phase != MountPhase.Idle ||
+                                LastCart?.State is CartridgeState.Ltfs or CartridgeState.NotLtfs);
     public bool NoCartridge => !HasCartridge;
     public bool HasUsage => _capacity > 0;
     public double UsagePercent => _capacity > 0 ? 100.0 * (_capacity - _free) / _capacity : 0;
