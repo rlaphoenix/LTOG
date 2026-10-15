@@ -37,6 +37,8 @@ public record CartridgeInfo(CartridgeState State, string? VolumeName, string? Fo
     /// <summary>Every MAM attribute of every partition (index = partition number), by attribute id.</summary>
     public IReadOnlyList<IReadOnlyDictionary<ushort, byte[]>> MamByPartition { get; init; } = [];
     public DriveParams? DriveParams { get; init; }
+    /// <summary>LTFS volume UUID, from MAM 0x080C (or the engine, while mounted); null if unknown.</summary>
+    public string? VolumeUuid { get; init; }
     public EncryptionInfo? Encryption { get; init; }
     /// <summary>Current block length from the MODE SENSE block descriptor; 0 = variable.</summary>
     public uint? BlockSize { get; init; }
@@ -328,6 +330,20 @@ public static class NativeTape
         mam.TryGetValue(id, out var v) && System.Text.Encoding.UTF8.GetString(v).Trim('\0', ' ') is { Length: > 0 } t
             ? t : null;
 
+    /// <summary>
+    /// The LTFS volume UUID in MAM 0x080C, volume coherency information: a length-prefixed
+    /// volume change reference, 8-byte coherency count and set id, 2-byte length, then the
+    /// application part, which LTFS fills as "LTFS\0" + UUID (36 chars + NUL) + version.
+    /// </summary>
+    public static string? CoherencyUuid(IReadOnlyDictionary<ushort, byte[]> mam)
+    {
+        if (!mam.TryGetValue(0x080C, out var v) || v.Length == 0) return null;
+        int app = 1 + v[0] + 8 + 8 + 2;
+        if (v.Length < app + 5 + 36 || !v.AsSpan(app, 5).SequenceEqual("LTFS\0"u8)) return null;
+        string uuid = System.Text.Encoding.ASCII.GetString(v, app + 5, 36);
+        return Guid.TryParse(uuid, out _) ? uuid : null;
+    }
+
     // ------------------------------------------------- MAM via a mounted volume
 
     // WinLtfs 1.2.0+ raw MAM command 0x83B on the volume root: the engine reads the
@@ -376,7 +392,7 @@ public static class NativeTape
     /// Every MAM attribute of every partition of the cartridge mounted at
     /// <paramref name="letter"/> ("T:"), read through the WinLtfs engine.
     /// </summary>
-    public static List<IReadOnlyDictionary<ushort, byte[]>> ReadVolumeMam(string letter)
+    public static List<IReadOnlyDictionary<ushort, byte[]>> ReadVolumeMam(string letter, out string? uuid)
     {
         using var h = CreateFile($@"{letter}\", FILE_READ_EA,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, IntPtr.Zero, OPEN_EXISTING,
@@ -385,7 +401,7 @@ public static class NativeTape
             throw new IOException($"Cannot open {letter}\\ (win32 error {Marshal.GetLastWin32Error()})");
 
         var mams = new List<IReadOnlyDictionary<ushort, byte[]>>();
-        string? uuid = null;
+        uuid = null;
         for (byte p = 0; p < 2; p++)   // WinLtfs: physical partition 0 or 1
         {
             if (VolumeMam(h, 1, p, 0, ref uuid) is not { } ids)
@@ -410,7 +426,7 @@ public static class NativeTape
     /// </summary>
     public static CartridgeInfo? ReadMountedCartridge(string letter, CartridgeInfo? prev, IActivityLog? log = null)
     {
-        var mams = ReadVolumeMam(letter);
+        var mams = ReadVolumeMam(letter, out var uuid);
         log?.Read($"Read cartridge — {letter}",
             $@"WinLtfs raw MAM (DeviceIoControl 0x83B)  {letter}\",
             new[] { $"{mams.Sum(m => m.Count)} MAM attributes across {mams.Count} partition(s)." },
@@ -426,6 +442,7 @@ public static class NativeTape
             LtoGeneration = prev?.LtoGeneration
                 ?? (MamNumber(mam, MAM_MEDIUM_DENSITY) is { } d ? LtoGenerationName((byte)d) : null),
             MamByPartition = mams,
+            VolumeUuid = uuid ?? mams.Select(CoherencyUuid).FirstOrDefault(u => u != null),
             Position = null,   // moves while mounted; not readable through the engine
         };
     }
@@ -559,6 +576,7 @@ public static class NativeTape
             version == null ? null : MamText(mam, MAM_USR_MED_TXT_LABEL), version, gen, wp)
         {
             MamByPartition = mams, DriveParams = dp, Encryption = enc, BlockSize = mp?.BlockLength,
+            VolumeUuid = version == null ? null : mams.Select(CoherencyUuid).FirstOrDefault(u => u != null),
             Position = GetTapePosition(h, 1, out uint part, out uint lo, out uint hi) == 0   // TAPE_LOGICAL_POSITION, no motion
                 ? (part, (ulong)hi << 32 | lo) : null,
         };

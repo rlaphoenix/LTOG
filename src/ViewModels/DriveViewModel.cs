@@ -65,7 +65,13 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     public MountPhase Phase
     {
         get => _phase;
-        set { _phase = value; RebuildDashboard(); Changed(); }
+        set
+        {
+            _touchRecord |= value != _phase && value is MountPhase.Mounted or MountPhase.Idle;   // (un)mounted
+            _phase = value;
+            RebuildDashboard();
+            Changed();
+        }
     }
 
     /// <summary>Shown only without a cartridge; the dashboard covers a loaded one.</summary>
@@ -158,6 +164,16 @@ public sealed class DriveViewModel : INotifyPropertyChanged
 
     private long _capacity, _free;   // bytes
     private string? _sig;
+    private TapeRecord? _rec;        // the loaded tape's record, as last saved; null once ejected
+    private bool _touchRecord;       // mounted or unmounted: save even if unchanged
+
+    private void SaveRecord(TapeRecord rec, bool ejected = false)
+    {
+        _rec = ejected ? null : rec;
+        _touchRecord = false;
+        try { TapeDb.Save(rec); }
+        catch (Exception ex) { App.Activity.Note($"recording tape {rec.Uuid} failed: {ex.Message}", isError: true); }
+    }
 
     public bool CartridgeLoading => _ejecting || LastCart?.State is null or CartridgeState.NotReady;
     public bool HasCartridge => !CartridgeLoading && (_phase != MountPhase.Idle ||
@@ -216,14 +232,26 @@ public sealed class DriveViewModel : INotifyPropertyChanged
             .Select(p => (Cap: (long)p.Cap!.Value << 20, Rem: (long)p.Rem << 20))
             .ToList();
 
-        // capacity: live from a mounted volume, else the per-partition MAM figures, as LTFS
-        // reports them: files go only in the data (last) partition, and LTFS holds back half
-        // the index partition's size from it (ltfs_capacity_data_unlocked)
+        // capacity: live from a mounted volume, else the per-partition MAM figures, as LTFS reports them
+        bool ltfs = c?.State == CartridgeState.Ltfs && parts.Count >= 2;
         (_capacity, _free) = _phase == MountPhase.Mounted && _state.Usage is { } live ? live : (0, 0);
         if (_capacity == 0)
-            (_capacity, _free) = c?.State == CartridgeState.Ltfs && parts.Count >= 2
-                ? (parts[^1].Cap - parts[0].Cap / 2, Math.Max(0, parts[^1].Rem - parts[0].Cap / 2))
+            (_capacity, _free) = ltfs
+                ? TapeRecord.LtfsSpace(parts[0].Cap, parts[^1].Cap, parts[^1].Rem)
                 : (parts.Sum(p => p.Cap), parts.Sum(p => p.Rem));
+
+        // remember each volume's serial and partitions for the Indexes and Search pages (indexes
+        // don't carry them): saved when they change, and when the tape is loaded, mounted,
+        // unmounted or ejected, so "as of" is when it was last seen
+        var now = DateTime.UtcNow;
+        var rec = ltfs && c!.VolumeUuid is { } uuid
+            ? new TapeRecord(uuid, T(0x0806), T(0x0401) ?? "", c.LtoGeneration, parts[0].Cap >> 20, parts[0].Rem >> 20,
+                parts[^1].Cap >> 20, parts[^1].Rem >> 20, now)
+            : null;
+        if (rec != null && (_touchRecord || _rec is null || _rec with { SeenUtc = now } != rec))
+            SaveRecord(rec);
+        else if (rec == null && _rec != null && c?.State == CartridgeState.NoMedia)
+            SaveRecord(_rec with { SeenUtc = now }, ejected: true);
 
         string type = (c?.LtoGeneration ?? "LTO") + N(0x0408) switch
         {
