@@ -78,14 +78,14 @@ public sealed class TapeMonitor(IActivityLog log)
         return done;
     }
 
-    public Task LoadOrEjectAsync(string device, bool load) => ExclusiveAsync(device, async () =>
+    public Task EjectAsync(string device) => ExclusiveAsync(device, async () =>
     {
-        var scope = log.Begin(LogKind.Native, $"{device}: {(load ? "Load" : "Eject")} cartridge",
-            $@"PrepareTape(\\.\{device}, {(load ? "TAPE_LOAD" : "TAPE_UNLOAD")})");
+        var scope = log.Begin(LogKind.Native, $"{device}: Eject cartridge",
+            $@"PrepareTape(\\.\{device}, TAPE_UNLOAD)");
         try
         {
-            await Task.Run(() => { if (load) NativeTape.Load(device); else NativeTape.Eject(device); });
-            scope.Line(load ? "Cartridge loaded." : "Cartridge ejected.");
+            await Task.Run(() => NativeTape.Eject(device));
+            scope.Line("Cartridge ejected.");
             scope.Complete();
         }
         catch (Exception ex) { scope.Complete(null, ex.Message); }

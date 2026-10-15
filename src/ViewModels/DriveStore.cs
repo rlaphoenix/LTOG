@@ -7,7 +7,7 @@ namespace LTOG;
 /// <summary>
 /// The drives store: one <see cref="DriveViewModel"/> per drive, kept in sync with
 /// <see cref="TapeMonitor"/>, plus every action on a drive (mount, unmount,
-/// eject/load, cartridge tools). Pages render the view models and call these actions;
+/// eject, cartridge tools). Pages render the view models and call these actions;
 /// they never touch the monitor or mount manager themselves.
 /// </summary>
 public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
@@ -219,13 +219,12 @@ public sealed class DriveStore(Settings settings, IActivityLog log, bool envOk)
         return false;
     }
 
-    /// <summary>Ejects the cartridge, or loads one when the drive is empty.</summary>
-    public async Task EjectOrLoadAsync(DriveViewModel vm)
+    public async Task EjectAsync(DriveViewModel vm)
     {
-        if (!CanUseUtilities(vm) || vm.MediaOpRunning) return;
-        vm.MediaOpRunning = true;     // spinner until the new state is published
-        try { await _monitor.LoadOrEjectAsync(vm.Drive.Device, vm.MediaAbsent); }
-        finally { vm.MediaOpRunning = false; }
+        if (!CanUseUtilities(vm) || vm.Ejecting) return;
+        vm.Ejecting = true;     // spinner until the new state is published
+        try { await _monitor.EjectAsync(vm.Drive.Device); }
+        finally { vm.Ejecting = false; }
     }
 
     /// <summary>Run an LTFS tool (mkltfs, unltfs, ltfsck) against the vm's drive.</summary>

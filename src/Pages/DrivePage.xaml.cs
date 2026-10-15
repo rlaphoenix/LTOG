@@ -39,8 +39,8 @@ public sealed partial class DrivePage : UserControl
         }
     }
 
-    private async void EjectLoad_Click(object sender, RoutedEventArgs e) =>
-        await App.DriveStore.EjectOrLoadAsync(ViewModel);
+    private async void Eject_Click(object sender, RoutedEventArgs e) =>
+        await App.DriveStore.EjectAsync(ViewModel);
 
     private async void Format_Click(object sender, RoutedEventArgs e)
     {

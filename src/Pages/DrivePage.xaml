@@ -100,7 +100,7 @@
                           ItemsSource="{x:Bind ViewModel.Letters}"
                           SelectedIndex="{x:Bind ViewModel.SelectedLetterIndex, Mode=TwoWay}"
                           IsEnabled="{x:Bind ViewModel.OptionsEnabled, Mode=OneWay}" />
-                <!-- (un)mount + eject/load, joined like a split button -->
+                <!-- (un)mount + eject, joined like a split button -->
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
                     <Button Style="{x:Bind ViewModel.ButtonStyle, Mode=OneWay}" CornerRadius="4,0,0,4"
                             IsEnabled="{x:Bind ViewModel.ButtonEnabled, Mode=OneWay}"
@@ -114,10 +114,9 @@
                     </Button>
                     <Button Style="{x:Bind ViewModel.ButtonStyle, Mode=OneWay}" CornerRadius="0,4,4,0"
                             VerticalAlignment="Stretch" Padding="10,0"
-                            IsEnabled="{x:Bind ViewModel.OptionsEnabled, Mode=OneWay}"
-                            ToolTipService.ToolTip="{x:Bind ViewModel.EjectLoadText, Mode=OneWay}"
-                            AutomationProperties.Name="{x:Bind ViewModel.EjectLoadText, Mode=OneWay}"
-                            Click="EjectLoad_Click">
+                            IsEnabled="{x:Bind ViewModel.CanEject, Mode=OneWay}"
+                            ToolTipService.ToolTip="Eject" AutomationProperties.Name="Eject"
+                            Click="Eject_Click">
                         <!-- eject: triangle over a bar -->
                         <PathIcon Width="14" Height="14" Data="M7,1 L13,8 L1,8 Z M1,10 H13 V12.5 H1 Z" />
                     </Button>

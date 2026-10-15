@@ -52,22 +52,14 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     private EncryptionInfo? _encryption;           // likewise
     public CartridgeInfo? LastCart => _state.Cartridge;
 
-    public bool MediaAbsent => LastCart?.State == CartridgeState.NoMedia;
-
-    private bool _mediaOpRunning;   // eject/load in progress
-    public bool MediaOpRunning
+    private bool _ejecting;
+    public bool Ejecting
     {
-        get => _mediaOpRunning;
-        set { _mediaOpRunning = value; Changed(); }
+        get => _ejecting;
+        set { _ejecting = value; Changed(); }
     }
 
-    public string EjectLoadText => (_mediaOpRunning, MediaAbsent) switch
-    {
-        (true, true) => "Loading...",
-        (true, false) => "Ejecting...",
-        (false, true) => "Load",
-        _ => "Eject",
-    };
+    public bool CanEject => OptionsEnabled && LastCart?.State != CartridgeState.NoMedia;
 
     private MountPhase _phase = MountPhase.Idle;
     public MountPhase Phase
@@ -77,7 +69,7 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Shown only without a cartridge; the dashboard covers a loaded one.</summary>
-    public string CartridgeText => _mediaOpRunning ? EjectLoadText : LastCart?.State switch
+    public string CartridgeText => _ejecting ? "Ejecting..." : LastCart?.State switch
     {
         CartridgeState.NoMedia => "No Cartridge Inserted",
         CartridgeState.NotReady => "Drive not ready...",
@@ -86,7 +78,7 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     };
 
     /// <summary>Muted drive-status line under the drive name (the cartridge has its own section).</summary>
-    public string StatusText => _mediaOpRunning ? EjectLoadText : _phase switch
+    public string StatusText => _ejecting ? "Ejecting..." : _phase switch
     {
         MountPhase.Mounting => $"Mounting at {Mapping?.Letter}...",
         MountPhase.Mounted => $"Mounted at {Mapping?.Letter}" + (Mapping?.ReadOnly == true ? ", read-only" : ""),
@@ -133,9 +125,9 @@ public sealed class DriveViewModel : INotifyPropertyChanged
 
     // ---- derived UI state --------------------------------------------------
 
-    public bool OptionsEnabled => _phase == MountPhase.Idle && _globalEnabled && !_mediaOpRunning;
+    public bool OptionsEnabled => _phase == MountPhase.Idle && _globalEnabled && !_ejecting;
 
-    public bool ButtonEnabled => _globalEnabled && !_mediaOpRunning && _phase switch
+    public bool ButtonEnabled => _globalEnabled && !_ejecting && _phase switch
     {
         MountPhase.Idle => CanMount && !CartridgeLoading,
         MountPhase.Mounting => true,    // acts as Cancel
@@ -167,7 +159,7 @@ public sealed class DriveViewModel : INotifyPropertyChanged
     private long _capacity, _free;   // bytes
     private string? _sig;
 
-    public bool CartridgeLoading => _mediaOpRunning || LastCart?.State is null or CartridgeState.NotReady;
+    public bool CartridgeLoading => _ejecting || LastCart?.State is null or CartridgeState.NotReady;
     public bool HasCartridge => !CartridgeLoading && (_phase != MountPhase.Idle ||
                                 LastCart?.State is CartridgeState.Ltfs or CartridgeState.NotLtfs);
     public bool NoCartridge => !HasCartridge;

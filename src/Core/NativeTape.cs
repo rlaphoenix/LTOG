@@ -56,7 +56,7 @@ public record EncryptionInfo(IReadOnlyList<uint> Algorithms, byte ConfigPrevente
 
 /// <summary>
 /// Native tape device access: enumeration via IOCTL_STORAGE_QUERY_PROPERTY and
-/// physical load/eject via the Win32 PrepareTape API (no SCSI pass-through needed).
+/// physical eject via the Win32 PrepareTape API (no SCSI pass-through needed).
 /// </summary>
 public static class NativeTape
 {
@@ -66,7 +66,6 @@ public static class NativeTape
     private const uint FILE_SHARE_WRITE = 2;
     private const uint OPEN_EXISTING = 3;
     private const uint IOCTL_STORAGE_QUERY_PROPERTY = 0x002D1400;
-    private const uint TAPE_LOAD = 0;
     private const uint TAPE_UNLOAD = 1;
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -167,9 +166,6 @@ public static class NativeTape
         while (end < buf.Length && buf[end] != 0) end++;
         return System.Text.Encoding.ASCII.GetString(buf, offset, end - offset).Trim();
     }
-
-    /// <summary>Load (thread) the cartridge currently in the drive.</summary>
-    public static void Load(string device) => Prepare(device, TAPE_LOAD);
 
     /// <summary>Unload and eject the cartridge.</summary>
     public static void Eject(string device) => Prepare(device, TAPE_UNLOAD);

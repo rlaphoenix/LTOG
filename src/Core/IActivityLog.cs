@@ -9,7 +9,7 @@ public enum LogKind
     Mount,
     /// <summary>A one-shot LTFS binary: mkltfs / unltfs / ltfsck / ltfs -V.</summary>
     Tool,
-    /// <summary>A native tape-device call (load/eject, SCSI pass-through).</summary>
+    /// <summary>A native tape-device call (eject, SCSI pass-through).</summary>
     Native,
     /// <summary>A passive read from the drive/cartridge (enumeration, MAM/status).</summary>
     Read,
