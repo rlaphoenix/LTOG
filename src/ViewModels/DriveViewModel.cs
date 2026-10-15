@@ -238,7 +238,7 @@ public sealed class DriveViewModel : INotifyPropertyChanged
             ("Type", type),
             ("Format", c?.State == CartridgeState.NotLtfs ? "Unformatted"
                 : $"LTFS {c?.FormatVersion ?? Mapping?.FormatVersion}".Trim()),
-            ("Write protect", c == null ? null : c.WriteProtected ? "Protected" : "Writable"),
+            ("Write protect", c == null ? null : c.WriteProtected ? "Enabled" : "Disabled"),
             ("Serial", T(0x0401)));
 
         var groups = !HasCartridge ? new List<StatGroup>() : new List<StatGroup>
