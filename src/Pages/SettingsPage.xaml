@@ -73,6 +73,40 @@
             </StackPanel>
 
             <StackPanel>
+                <TextBlock Text="Logging" Style="{StaticResource SectionHeader}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel Spacing="12">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Support ticket folder" />
+                            <TextBox x:Name="LogDirBox"
+                                     PlaceholderText="C:\ProgramData\LTOG"
+                                     LostFocus="SettingChanged" />
+                            <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True"
+                                       Text="Folder where LTFS should store all support tickets generated" />
+                        </StackPanel>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Logging verbosity" VerticalAlignment="Center" />
+                            <ComboBox x:Name="VerbosityCombo" Grid.Column="1"
+                                      HorizontalAlignment="Stretch"
+                                      SelectionChanged="SettingChanged">
+                                <ComboBoxItem Content="Normal" />
+                                <ComboBoxItem Content="Verbose (trace)" />
+                                <ComboBoxItem Content="Full trace (slow)" />
+                            </ComboBox>
+                        </Grid>
+                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                   IsTextSelectionEnabled="True"
+                                   Text="These apply to new mounts. Higher verbosity noticeably slows the volume and is only for diagnosing problems." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel>
                 <TextBlock Text="Advanced mount options" Style="{StaticResource SectionHeader}" />
                 <Border Style="{StaticResource Card}">
                     <StackPanel Spacing="12">
@@ -115,32 +149,6 @@
                                        IsTextSelectionEnabled="True"
                                        Text="Keeps small, frequently-used files in the fast index partition for quicker access. Only applies if the cartridge was formatted to permit it (mkltfs without --no-override)." />
                         </StackPanel>
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Support ticket folder" />
-                            <TextBox x:Name="LogDirBox"
-                                     PlaceholderText="C:\ProgramData\LTOG"
-                                     LostFocus="SettingChanged" />
-                            <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                       IsTextSelectionEnabled="True"
-                                       Text="Folder where LTFS should store all support tickets generated" />
-                        </StackPanel>
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Logging verbosity" VerticalAlignment="Center" />
-                            <ComboBox x:Name="VerbosityCombo" Grid.Column="1"
-                                      HorizontalAlignment="Stretch"
-                                      SelectionChanged="SettingChanged">
-                                <ComboBoxItem Content="Normal" />
-                                <ComboBoxItem Content="Verbose (trace)" />
-                                <ComboBoxItem Content="Full trace (slow)" />
-                            </ComboBox>
-                        </Grid>
-                        <TextBlock FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                   IsTextSelectionEnabled="True"
-                                   Text="These apply to new mounts. Higher verbosity noticeably slows the volume and is only for diagnosing problems." />
                     </StackPanel>
                 </Border>
             </StackPanel>
